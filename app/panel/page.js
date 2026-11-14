@@ -18,9 +18,13 @@ const formatDay = (ymd) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 };
-const monthLabel = (ym) => {
+const monthLabel = (ym, short = false) => {
   const [y, m] = ym.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+  return new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-IN", {
+    month: short ? "short" : "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 };
 
 export default function AdminPanelPage() {
@@ -661,14 +665,16 @@ export default function AdminPanelPage() {
 
             {/* Filter & Search Bar */}
             <div className="pn-toolbar" style={styles.toolbar}>
-              <div className="pn-search" style={styles.toolSearchWrap}>
+              <label className="pn-search" style={{ ...styles.filterField, ...styles.toolSearchWrap }}>
+                <span style={styles.filterLabel}>Search</span>
+                <span style={{ position: "relative", display: "block" }}>
                 <svg style={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search by client name, mobile, location, property type, budget..."
+                  placeholder="Name, mobile, location, budget, status…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={styles.toolSearch}
@@ -678,7 +684,8 @@ export default function AdminPanelPage() {
                     ✕
                   </button>
                 )}
-              </div>
+                </span>
+              </label>
 
               <div className="pn-filters" style={styles.toolActions}>
                 <label style={styles.filterField}>
@@ -691,9 +698,9 @@ export default function AdminPanelPage() {
                       setDateTo("");
                     }}
                     className="pn-select"
-                    style={styles.selectFilter}
+                    style={{ ...styles.selectFilter, width: "190px" }}
                   >
-                    <option value="current">This month ({monthLabel(liveMonth)})</option>
+                    <option value="current">This month ({monthLabel(liveMonth, true)})</option>
                     <option value="all">All months</option>
                     {monthOptions.map((ym) => (
                       <option key={ym} value={ym}>
@@ -713,7 +720,7 @@ export default function AdminPanelPage() {
                       if (e.target.value) setMonthFilter("all");
                     }}
                     className="pn-select"
-                    style={styles.selectFilter}
+                    style={{ ...styles.selectFilter, width: "128px" }}
                   />
                 </label>
                 <label style={styles.filterField}>
@@ -728,7 +735,7 @@ export default function AdminPanelPage() {
                       if (e.target.value) setMonthFilter("all");
                     }}
                     className="pn-select"
-                    style={styles.selectFilter}
+                    style={{ ...styles.selectFilter, width: "128px" }}
                   />
                 </label>
                 <label style={styles.filterField}>
@@ -737,7 +744,7 @@ export default function AdminPanelPage() {
                     value={sourceFilter}
                     onChange={(e) => setSourceFilter(e.target.value)}
                     className="pn-select"
-                    style={styles.selectFilter}
+                    style={{ ...styles.selectFilter, width: "118px" }}
                   >
                     <option value="all">All sources</option>
                     {sources.map((src) => (
@@ -753,7 +760,7 @@ export default function AdminPanelPage() {
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="pn-select"
-                    style={styles.selectFilter}
+                    style={{ ...styles.selectFilter, width: "158px" }}
                     aria-label="Filter by status"
                   >
                     <option value="all">All statuses ({periodLeads.length})</option>
@@ -766,7 +773,7 @@ export default function AdminPanelPage() {
                 </label>
                 {filtersActive && (
                   <button onClick={clearFilters} style={styles.clearFiltersBtn}>
-                    Reset filters
+                    Reset
                   </button>
                 )}
               </div>
@@ -1243,6 +1250,11 @@ function getSourceBadgeStyle(source = "") {
 
 /* ---- Responsive layout (inline styles above are the desktop design) ---- */
 const RESPONSIVE_CSS = `
+@media (max-width: 1365px) {
+  .pn-toolbar { flex-wrap: wrap !important; }
+  .pn-search { flex: 1 1 100% !important; }
+  .pn-filters { flex: 1 1 100% !important; flex-wrap: wrap !important; }
+}
 @media (max-width: 1200px) {
   .pn-main { padding: 26px 24px 50px !important; }
   .pn-table { min-width: 980px; }
@@ -1269,7 +1281,7 @@ const RESPONSIVE_CSS = `
   .pn-header { align-items: flex-start !important; margin-bottom: 20px !important; }
   .pn-title { font-size: 24px !important; }
   .pn-search { flex: 1 1 100% !important; }
-  .pn-select { width: 100%; }
+  .pn-select { width: 100% !important; }
   .pn-filters > label { flex: 1 1 calc(50% - 10px); min-width: 0; }
   .pn-filters > button { flex: 1 1 100%; }
   .pn-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
@@ -1596,14 +1608,14 @@ const styles = {
   toolbar: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
+    alignItems: "flex-end",
+    flexWrap: "nowrap",
     gap: "14px",
     marginBottom: "18px",
   },
   toolSearchWrap: {
-    position: "relative",
-    flex: "1 1 100%",
+    flex: "1 1 200px",
+    minWidth: "120px",
   },
   searchIcon: {
     position: "absolute",
@@ -1616,8 +1628,10 @@ const styles = {
   },
   toolSearch: {
     width: "100%",
+    height: "40px",
     boxSizing: "border-box",
-    padding: "11px 36px 11px 40px",
+    fontFamily: "inherit",
+    padding: "0 36px 0 40px",
     borderRadius: "10px",
     border: "1.5px solid #dfd8dc",
     background: "#ffffff",
@@ -1638,9 +1652,9 @@ const styles = {
   toolActions: {
     display: "flex",
     alignItems: "flex-end",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: "10px",
-    flex: "1 1 100%",
+    flex: "0 0 auto",
   },
   filterField: {
     display: "flex",
@@ -1655,7 +1669,9 @@ const styles = {
     color: "#7d7077",
   },
   clearFiltersBtn: {
-    padding: "10px 14px",
+    height: "40px",
+    whiteSpace: "nowrap",
+    padding: "0 14px",
     borderRadius: "9px",
     border: "1.5px solid #e3cddb",
     background: "#fbf3f7",

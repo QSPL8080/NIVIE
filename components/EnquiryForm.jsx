@@ -120,6 +120,10 @@ export default function EnquiryForm({
     try {
       window.fbq?.("track", "Lead", { content_name: computedSource });
     } catch {}
+    // Google Tag Manager / GA4: "generate_lead" event
+    try {
+      (window.dataLayer = window.dataLayer || []).push({ event: "generate_lead", form_name: computedSource });
+    } catch {}
   };
 
   const err = (k) => (

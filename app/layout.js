@@ -3,8 +3,6 @@ import "@fontsource/cormorant-garamond/400.css";
 import "@fontsource/cormorant-garamond/400-italic.css";
 import "@fontsource/cormorant-garamond/500.css";
 import "@fontsource/cormorant-garamond/500-italic.css";
-import "@fontsource/cormorant-garamond/600.css";
-import "@fontsource/cormorant-garamond/600-italic.css";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { site } from "@/lib/content";
@@ -56,6 +54,17 @@ const jsonLd = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        {/* Google tag (Google Tag Manager container GTM-NV9XRWJ2) */}
+        <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-NV9XRWJ2"></script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());`,
+          }}
+        />
+      </head>
       <body>
         <script
           type="application/ld+json"
