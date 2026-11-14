@@ -27,32 +27,63 @@ If Windows asks to allow Node.js through the firewall, click **Allow** (Private 
 
 ## Enquiries → MySQL
 
-Every form submission (hero form + pop-up) is saved to MySQL through `app/api/leads/route.js`.
+Every form submission (hero form + pop-up) is saved to MySQL through `app/api/leads/route.js`,
+and shown in the admin panel at `/login` → `/panel`.
 
-1. Copy `.env.example` to `.env.local` and fill in your MySQL password and admin login.
-2. Create the database and table (only needed once):
+### Two databases, one codebase
 
-   ```bash
-   npm run db:setup
-   ```
+| Where | Database | Settings come from |
+| --- | --- | --- |
+| Your PC (`npm run dev`) | local MySQL (`nivie_db`) | `.env.local` — never pushed to GitHub |
+| Live site on Hostinger | Hostinger MySQL (`u123456789_…`) | hPanel → your Node.js app → **Environment variables** |
 
-   It prints `✔ Database "nivie_db" and table "leads" are ready`. (Or run `sql/schema.sql` in MySQL Workbench.)
-3. `npm run dev`, submit the form, then in Workbench refresh **SCHEMAS** → `nivie_db` → `leads`.
-4. Admin panel: open `/login`, sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`, and see all leads at `/panel`.
+The code never contains database details, so pushing to GitHub changes nothing locally,
+and the live site always uses the Hostinger database.
+
+### Database structure updates itself — no phpMyAdmin
+
+Tables are defined in **`lib/migrations.mjs`**. Each change runs once per database and is
+recorded in the `schema_migrations` table. They are applied automatically:
+
+- on every deploy — `npm run build` runs `scripts/migrate.mjs` first (Hostinger runs the build on every push)
+- when the site first talks to the database after starting
+- locally with `npm run db:migrate`
+
+To change the database later, **add** a new migration at the bottom of `lib/migrations.mjs`
+(never edit one that's already pushed), test with `npm run db:migrate`, then push.
+If a migration has an SQL error, the Hostinger build fails and the old site stays online.
+
+### Local setup
+
+1. Copy `.env.example` to `.env.local` and fill in your local MySQL password and admin login.
+2. `npm run db:migrate` → prints `✔ Database …` (creates `nivie_db` if needed).
+3. `npm run dev`, submit the form, open `/login`.
 
 If MySQL is unreachable the form still opens the visitor's email app, so no enquiry is lost —
-the reason is printed in the `npm run dev` terminal as `[leads] MySQL save failed: …`.
+the reason is printed in the terminal as `[leads] MySQL save failed: …`.
 
-## Build for hosting
+## Deploy on Hostinger (auto-deploy from GitHub)
 
-```bash
-npm run build
-npm start
-```
+1. **Database** — hPanel → *Websites* → *Manage* → *Databases* → *MySQL Databases* → create one.
+   Note the full database name, user and password (host is `localhost`). Don't create any tables.
+2. **App** — hPanel → *Websites* → *Add Website* → *Node.js web app* → *Import Git repository* →
+   connect GitHub → pick `QSPL8080/NIVIE`, branch `main`. Framework: Next.js, Node 20+,
+   build command `npm run build` (default).
+3. **Environment variables** (same screen, or later under *Environment variables*):
 
-Because enquiries are saved by a server route, the site needs **Node.js hosting**
-(Vercel, Hostinger Node.js / VPS, Render…). Set the same `.env.local` values as
-environment variables on the host, pointing `MYSQL_HOST` at the hosting company's MySQL server.
+   ```
+   MYSQL_HOST=localhost
+   MYSQL_PORT=3306
+   MYSQL_USER=u123456789_nivie        (from step 1)
+   MYSQL_PASSWORD=…                   (from step 1)
+   MYSQL_DATABASE=u123456789_nivie    (from step 1)
+   ADMIN_EMAIL=…
+   ADMIN_USERNAME=Nivie Admin
+   ADMIN_PASSWORD=…                   (strong, not the local one)
+   SESSION_SECRET=…                   (long random text, 32+ characters)
+   ```
+
+4. **Deploy.** From now on every `git push` to `main` rebuilds the site and updates the database.
 
 ## Where to edit
 
@@ -65,6 +96,7 @@ environment variables on the host, pointing `MYSQL_HOST` at the hosting company'
 | Colours, fonts, styles | `app/globals.css` (variables at the top) |
 | Animations (loader, cursor, scroll effects) | `components/Experience.jsx` |
 | Images | `public/images/` |
+| Database tables / changes | `lib/migrations.mjs` |
 
 ## Fonts
 
