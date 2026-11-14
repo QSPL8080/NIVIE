@@ -16,7 +16,7 @@
 
 import { useEffect, useRef } from "react";
 
-const LIGHT = ".studio, .stories, .services, .why, .voices, .cta, .contact, .insta, .drawer, .cookie, .loader, .footer, .hero-form, .ep-box";
+const LIGHT = ".studio, .stories, .services, .why, .voices, .cta, .contact, .insta, .drawer, .cookie, .footer, .hero-form, .ep-box";
 const LINK = "a, button, label, select, summary, [role=button], [role=tab], input[type=checkbox], input[type=radio]";
 const TEXT = "input:not([type=checkbox]):not([type=radio]):not([type=submit]), textarea, [contenteditable=true]";
 

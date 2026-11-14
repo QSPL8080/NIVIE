@@ -445,80 +445,6 @@ html.cursor-on * {
 /* ==========================================================================
    Loader
    ========================================================================== */
-.loader {
-  position: fixed;
-  inset: 0;
-  z-index: 9800;
-  background: var(--night);
-  color: var(--bone);
-  display: grid;
-  place-items: center;
-  clip-path: ellipse(140% 140% at 50% 0%);
-  /* safety: never trap the page if scripts fail */
-  animation: loaderSafety 0.5s 2.8s forwards;
-}
-@keyframes loaderSafety {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-.loader-inner {
-  display: grid;
-  justify-items: center;
-  gap: 26px;
-}
-.loader-arch {
-  position: relative;
-  width: 150px;
-  height: 196px;
-}
-.loader-arch svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.loader-arch path {
-  fill: none;
-  stroke: var(--gold-2);
-  stroke-width: 1.2;
-}
-.loader-mark {
-  position: absolute;
-  inset: 34px 26px 30px;
-  display: grid;
-  place-items: center;
-}
-.loader-mark img {
-  width: 100%;
-  height: auto;
-}
-.loader-count {
-  font-family: var(--f-display);
-  font-style: italic;
-  font-size: clamp(44px, 6vw, 72px);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
-.loader-words {
-  display: flex;
-  gap: 18px;
-  font-size: 11px;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-  color: var(--mist);
-}
-.loader-words span {
-  display: block;
-  overflow: hidden;
-}
-.loader-words b {
-  display: block;
-  font-weight: 500;
-}
 
 /* ==========================================================================
    Navigation
@@ -3540,16 +3466,6 @@ h2 em {
   text-transform: uppercase;
 }
 
-/* ---------- loader ---------- */
-.loader-arch path {
-  stroke: var(--plum);
-}
-.loader-count {
-  font-family: var(--f-display);
-  font-style: normal;
-  font-weight: 300;
-  letter-spacing: 0.1em;
-}
 
 /* ---------- hero: full-bleed photograph ---------- */
 .hero {
@@ -4013,14 +3929,6 @@ html {
   --c-ink: #fff;
 }
 
-/* loader */
-.loader {
-  background: var(--lilac-1);
-  color: #812e5a;
-}
-.loader-arch path {
-  stroke: #812e5a;
-}
 
 /* hero video: lighter plum veil */
 .hero {
@@ -4963,4 +4871,25 @@ h2.display {
   .contact-cards strong {
     font-size: 13.5px;
   }
+}
+
+/* ---- Form dropdowns: black text (hero form + pop-up) ---- */
+.ef-select select,
+.ef-select select.is-empty,
+.ef-select option {
+  color: #000;
+}
+.ef-select option {
+  background: #fff;
+}
+
+/* ---- Hero heading: bold ---- */
+.hero h1,
+.hero h1 em {
+  font-weight: 600;
+}
+
+/* ---- Footer NIVIE wordmark: a little darker ---- */
+.foot-mark img {
+  opacity: 0.22;
 }

@@ -5,25 +5,6 @@ import EnquiryForm from "./EnquiryForm";
 import { projects, reasons, reels, services, site } from "@/lib/content";
 
 /* ------------------------------------------------------------------ */
-export function Loader() {
-  return (
-    <div className="loader" aria-hidden="true">
-      <div className="loader-inner">
-        <div className="loader-arch">
-          <svg viewBox="0 0 150 196">
-            <path d="M3 194 V75 A72 72 0 0 1 147 75 V194 Z" />
-          </svg>
-          <div className="loader-mark">
-            <img src="/images/logo-mark-sm.png" alt="" width="240" height="213" />
-          </div>
-        </div>
-        <div className="loader-count">000</div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 export function Hero() {
   return (
     <section className="hero" id="top" aria-labelledby="hero-title">

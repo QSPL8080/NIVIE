@@ -2,7 +2,7 @@
 
 /*
   Experience — every page-level motion in one place:
-  smooth scroll (Lenis), preloader, hero intro, custom cursor, magnetic buttons,
+  smooth scroll (Lenis), hero intro, custom cursor, magnetic buttons,
   scroll reveals, word-fill, parallax, marquee velocity, pinned horizontal
   project gallery, the drawn gold ribbon in "Why Nivie", nav behaviour.
 */
@@ -137,44 +137,9 @@ export default function Experience() {
         return tl;
       };
 
-      /* ---------------- Preloader (always finished within 3 s of page open) ---------------- */
-      const loader = q(".loader");
-      const BUDGET = 2.8; // seconds from the moment the page started opening
-      const elapsed = performance.now() / 1000; // time already spent before scripts ran
-      const left = BUDGET - elapsed;
-      if (loader && !reduce && left > 0.6) {
-        lenis?.stop();
-        const count = q(".loader-count", loader);
-        const path = q(".loader-arch path", loader);
-        const len = path.getTotalLength();
-        const n = { v: 0 };
-        gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
-        gsap.set(loader, { animation: "none" });
-        const tl = gsap
-          .timeline()
-          .to(path, { strokeDashoffset: 0, duration: 1.1, ease: "power2.inOut" }, 0)
-          .fromTo(".loader-mark", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.9, ease: "power3.inOut" }, 0.2)
-          .to(n, {
-            v: 100,
-            duration: 1.3,
-            ease: "power2.inOut",
-            onUpdate: () => (count.textContent = String(Math.round(n.v)).padStart(3, "0")),
-          }, 0)
-          .to(".loader-inner", { y: -24, opacity: 0, duration: 0.35, ease: "power2.in" }, 1.35)
-          .to(loader, { clipPath: "ellipse(140% 0% at 50% 0%)", duration: 0.8, ease: "expo.inOut" }, 1.5)
-          .add(() => {
-            loader.style.display = "none";
-            lenis?.start();
-            ScrollTrigger.refresh();
-          }, 2.3);
-        // natural length is 2.3 s; if the page was slow to start, speed it up to stay inside the budget
-        if (left < 2.3) tl.timeScale(2.3 / left);
-        tl.add(heroIntro(), 1.7);
-      } else {
-        if (loader) loader.style.display = "none";
-        lenis?.start();
-        if (!reduce) heroIntro();
-      }
+      /* ---------------- Page opens straight away (no preloader) ---------------- */
+      lenis?.start();
+      if (!reduce) heroIntro();
 
       if (reduce) return;
 
