@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
 import { cookies } from "next/headers";
 import { verifyToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { getLeads, deleteLead } from "@/lib/db";
@@ -54,8 +56,15 @@ export async function DELETE(req) {
       );
     }
 
+    // Permanently removes the row from the MySQL `leads` table.
     const deleted = await deleteLead(id);
-    return NextResponse.json({ success: deleted });
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, notFound: true, error: "This lead was already deleted." },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error deleting lead:", err);
     return NextResponse.json(

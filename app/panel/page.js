@@ -156,14 +156,15 @@ export default function AdminPanelPage() {
 
   const handleDelete = async (id, e) => {
     e?.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this lead?")) return;
+    if (!window.confirm("Delete this lead permanently? It will be removed from the database and cannot be recovered.")) return;
 
     setDeletingId(id);
     try {
       const res = await fetch(`/api/admin/leads?id=${id}`, { method: "DELETE" });
       if (res.status === 401) return handleLogout("expired");
       const data = await res.json();
-      if (data.success) {
+      if (data.success || data.notFound) {
+        // Gone from the database → remove it from the screen too
         setLeads((prev) => prev.filter((l) => l.id !== id));
         if (selectedLead?.id === id) setSelectedLead(null);
       } else {
