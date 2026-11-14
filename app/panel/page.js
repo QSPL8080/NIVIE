@@ -403,13 +403,6 @@ export default function AdminPanelPage() {
     }
   };
 
-  // Unique sources for filter
-  const sources = useMemo(() => {
-    const s = new Set();
-    leads.forEach((l) => l.source && s.add(l.source));
-    return Array.from(s);
-  }, [leads]);
-
   // Months in the month dropdown: the last 12 months, every older month that has leads,
   // and whatever month the arrows are on (newest first).
   const monthOptions = useMemo(() => {
@@ -522,7 +515,7 @@ export default function AdminPanelPage() {
       idx + 1,
       l.id,
       `"${formatDate(l.created_at)}"`,
-      `"${l.source || "Website"}"`,
+      `"${l.source || "Page Form"}"`,
       `"${(l.name || "").replace(/"/g, '""')}"`,
       `"${(l.phone || "").replace(/"/g, '""')}"`,
       `"${(l.budget || "").replace(/"/g, '""')}"`,
@@ -805,7 +798,8 @@ export default function AdminPanelPage() {
                     onChange={setSourceFilter}
                     options={[
                       { value: "all", label: "All sources" },
-                      ...sources.map((src) => ({ value: src, label: src })),
+                      { value: "Page Form", label: "Page Form" },
+                      { value: "Popup Modal", label: "Popup Modal" },
                     ]}
                   />
                 </div>
@@ -916,7 +910,7 @@ export default function AdminPanelPage() {
                           </td>
                           <td className="pn-td-source" data-label="Source" style={styles.td}>
                             <span style={getSourceBadgeStyle(lead.source)}>
-                              {lead.source || "Website"}
+                              {lead.source || "Page Form"}
                             </span>
                           </td>
                           <td className="pn-td-name" style={styles.tdName}>
@@ -986,7 +980,7 @@ export default function AdminPanelPage() {
             <div style={styles.modalHead}>
               <div>
                 <span style={getSourceBadgeStyle(selectedLead.source)}>
-                  Source: {selectedLead.source || "Website"}
+                  Source: {selectedLead.source || "Page Form"}
                 </span>
                 <h3 style={styles.modalTitle}>{selectedLead.name}</h3>
                 <span style={styles.modalDate}>{formatDate(selectedLead.created_at)}</span>
@@ -1092,7 +1086,7 @@ export default function AdminPanelPage() {
                         Enquiry received · <strong style={{ color: statusGroup("New Lead").color }}>New Lead</strong>
                       </span>
                       <span style={styles.historyMeta}>
-                        {formatDate(selectedLead.created_at)} · {selectedLead.source || "Website"}
+                        {formatDate(selectedLead.created_at)} · {selectedLead.source || "Page Form"}
                       </span>
                     </div>
                   </li>
@@ -1495,8 +1489,8 @@ function StatusSelect({ value, onChange, large = false }) {
 }
 
 function getSourceBadgeStyle(source = "") {
-  const isHero = source.toLowerCase().includes("hero");
   const isPop = source.toLowerCase().includes("pop");
+  const isHero = !isPop; // "Page Form" (hero + contact forms)
   return {
     display: "inline-block",
     padding: "4px 9px",

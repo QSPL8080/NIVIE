@@ -25,15 +25,8 @@ export default function EnquiryForm({
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("idle"); // idle | sending | sent | mailto | error
 
-  const computedSource =
-    source ||
-    (idPrefix === "hero"
-      ? "Hero Section"
-      : idPrefix === "pop"
-      ? "Popup Modal"
-      : idPrefix === "contact"
-      ? "Contact Section"
-      : "Website");
+  // Two lead sources only: the pop-up, and the forms on the page (hero + contact)
+  const computedSource = source || (idPrefix === "pop" ? "Popup Modal" : "Page Form");
 
   // After a successful enquiry, show "Thank you" for 3 seconds,
   // then go back to the empty form (the pop-up closes itself at this point).

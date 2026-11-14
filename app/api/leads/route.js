@@ -25,7 +25,8 @@ export async function POST(req) {
   const location = clean(body.propertyLocation ?? body.location, 120);
   const type = clean(body.propertyType ?? body.type, 100);
   const timeline = clean(body.projectTimeline ?? body.timeline, 100);
-  const source = clean(body.source || "Website", 60);
+  // Only two sources are recorded: "Popup Modal" and "Page Form" (hero + contact forms)
+  const source = /pop/i.test(String(body.source || "")) ? "Popup Modal" : "Page Form";
 
   if (name.length < 2) {
     return NextResponse.json({ success: false, error: "Please enter your full name." }, { status: 400 });
