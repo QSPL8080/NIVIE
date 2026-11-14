@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSession, unauthorized } from "@/lib/adminAuth";
-import { getNotes, addNote, deleteNote } from "@/lib/db";
+import { getNotes, addNote, updateNote } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -44,15 +44,28 @@ export async function POST(req) {
   }
 }
 
-// Delete a note:  DELETE ?id=
-export async function DELETE(req) {
+// Edit a note:  PATCH { id, note }   (notes can be edited, never deleted)
+export async function PATCH(req) {
   if (!(await getAdminSession())) return unauthorized();
   try {
-    const id = new URL(req.url).searchParams.get("id");
-    const deleted = await deleteNote(id);
-    return NextResponse.json({ success: true, alreadyDeleted: !deleted });
+    const { id, note } = await req.json();
+    const text = String(note ?? "").trim();
+    if (!text) {
+      return NextResponse.json({ success: false, error: "A note can't be empty." }, { status: 400 });
+    }
+    if (text.length > MAX_NOTE) {
+      return NextResponse.json(
+        { success: false, error: `Notes can be up to ${MAX_NOTE} characters.` },
+        { status: 400 }
+      );
+    }
+    const saved = await updateNote(id, text);
+    if (!saved) {
+      return NextResponse.json({ success: false, notFound: true, error: "This note no longer exists." }, { status: 404 });
+    }
+    return NextResponse.json({ success: true, note: saved });
   } catch (err) {
-    console.error("Error deleting note:", err);
-    return NextResponse.json({ success: false, error: "Could not delete the note." }, { status: 500 });
+    console.error("Error editing note:", err);
+    return NextResponse.json({ success: false, error: "Could not save the change." }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LEAD_STATUSES, STATUS_GROUPS, statusColors, statusGroup } from "@/lib/leadStatus";
@@ -252,7 +252,10 @@ export default function AdminPanelPage() {
     loadHistory(openLeadId).finally(() => setHistoryLoading(false));
   }, [openLeadId, loadHistory]);
 
+  const [modalTab, setModalTab] = useState("details");
   useEffect(() => {
+    setModalTab("details");
+    setEditingNoteId(null);
     setNotes([]);
     setNoteText("");
     setNoteError("");
@@ -317,21 +320,39 @@ export default function AdminPanelPage() {
     }
   };
 
-  const removeNote = async (noteId) => {
-    if (!window.confirm("Delete this note?")) return;
+  // Notes can be edited (never deleted)
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const startEdit = (n) => {
+    setEditingNoteId(n.id);
+    setEditText(n.note);
+  };
+  const saveEdit = async () => {
+    const text = editText.trim();
+    if (!text || editSaving) return;
+    const original = notes.find((n) => n.id === editingNoteId);
+    if (original && original.note === text) return setEditingNoteId(null);
+    setEditSaving(true);
     busy.current++;
     try {
-      const res = await fetch(`/api/admin/notes?id=${noteId}`, { method: "DELETE" });
+      const res = await fetch("/api/admin/notes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingNoteId, note: text }),
+      });
       if (res.status === 401) return handleLogout("expired");
       const data = await res.json();
-      if (!data.success) return alert(data.error || "Could not delete the note.");
-      const list = notes.filter((n) => n.id !== noteId);
+      if (!data.success) return alert(data.error || "Could not save the change.");
+      const list = notes.map((n) => (n.id === data.note.id ? data.note : n));
       setNotes(list);
       syncNoteSummary(openLeadId, list);
+      setEditingNoteId(null);
     } catch {
-      alert("Error connecting to server. Note not deleted.");
+      alert("Error connecting to server. Change not saved.");
     } finally {
       busy.current--;
+      setEditSaving(false);
     }
   };
 
@@ -404,6 +425,29 @@ export default function AdminPanelPage() {
   }, [leads, liveMonth]);
 
   const activeMonth = monthFilter === "current" ? liveMonth : monthFilter; // "all" or "YYYY-MM"
+  const firstMonth = monthOptions[monthOptions.length - 1];
+
+  // Choosing the live month keeps it "live" (it moves on by itself when the month changes)
+  const pickMonth = (ym) => {
+    setMonthFilter(ym === liveMonth ? "current" : ym);
+    setDateFrom("");
+    setDateTo("");
+  };
+  const shiftMonth = (ym, delta) => {
+    let [y, m] = ym.split("-").map(Number);
+    m += delta;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    return `${y}-${String(m).padStart(2, "0")}`;
+  };
+  const canPrev = activeMonth === "all" ? true : activeMonth > firstMonth;
+  const canNext = activeMonth !== "all" && activeMonth < liveMonth;
+  const stepMonth = (delta) => {
+    if (activeMonth === "all") return pickMonth(liveMonth); // from "All months", ‹ jumps to the current month
+    const next = shiftMonth(activeMonth, delta);
+    if (next > liveMonth || next < firstMonth) return;
+    pickMonth(next);
+  };
   const periodLabel =
     dateFrom || dateTo
       ? `${dateFrom ? formatDay(dateFrom) : "Start"} – ${dateTo ? formatDay(dateTo) : "Today"}`
@@ -688,27 +732,42 @@ export default function AdminPanelPage() {
               </label>
 
               <div className="pn-filters" style={styles.toolActions}>
-                <label style={styles.filterField}>
+                <div className="pn-month" style={styles.filterField}>
                   <span style={styles.filterLabel}>Month</span>
-                  <select
-                    value={monthFilter}
-                    onChange={(e) => {
-                      setMonthFilter(e.target.value);
-                      setDateFrom("");
-                      setDateTo("");
-                    }}
-                    className="pn-select"
-                    style={{ ...styles.selectFilter, width: "190px" }}
-                  >
-                    <option value="current">This month ({monthLabel(liveMonth, true)})</option>
-                    <option value="all">All months</option>
-                    {monthOptions.map((ym) => (
-                      <option key={ym} value={ym}>
-                        {monthLabel(ym)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <div style={styles.monthNav}>
+                    <button
+                      type="button"
+                      onClick={() => stepMonth(-1)}
+                      disabled={!canPrev}
+                      aria-label="Previous month"
+                      style={{ ...styles.monthArrow, opacity: canPrev ? 1 : 0.35 }}
+                    >
+                      ‹
+                    </button>
+                    <select
+                      value={monthFilter === "current" ? liveMonth : monthFilter}
+                      onChange={(e) => pickMonth(e.target.value)}
+                      aria-label="Month"
+                      style={styles.monthSelect}
+                    >
+                      <option value="all">All months</option>
+                      {monthOptions.map((ym) => (
+                        <option key={ym} value={ym}>
+                          {monthLabel(ym)}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => stepMonth(1)}
+                      disabled={!canNext}
+                      aria-label="Next month"
+                      style={{ ...styles.monthArrow, opacity: canNext ? 1 : 0.35 }}
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
                 <label style={styles.filterField}>
                   <span style={styles.filterLabel}>From</span>
                   <input
@@ -940,6 +999,26 @@ export default function AdminPanelPage() {
               </button>
             </div>
 
+            <div style={styles.tabBar} role="tablist">
+              {[
+                ["details", "Details"],
+                ["status", `Lead Status${history.length ? ` (${history.length})` : ""}`],
+                ["notes", `Notes${notes.length ? ` (${notes.length})` : ""}`],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={modalTab === key}
+                  onClick={() => setModalTab(key)}
+                  style={{ ...styles.tabBtn, ...(modalTab === key ? styles.tabBtnActive : null) }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {modalTab === "details" && (
+              <>
             <div className="pn-modal-grid" style={styles.modalGrid}>
               <div style={styles.modalItem}>
                 <span style={styles.modalLabel}>Mobile Number</span>
@@ -976,96 +1055,138 @@ export default function AdminPanelPage() {
               </div>
             </div>
 
-            <div style={styles.modalStatusRow}>
-              <span style={styles.modalLabel}>Lead Status</span>
-              <StatusSelect
-                value={selectedLead.status}
-                onChange={(v) => updateStatus(selectedLead.id, v)}
-                large
-              />
-              {selectedLead.status_updated_at && (
-                <span style={styles.statusUpdated}>Last changed {formatDate(selectedLead.status_updated_at)}</span>
-              )}
-            </div>
+              </>
+            )}
 
-            <div style={styles.historyBox}>
-              <span style={styles.modalLabel}>Status History</span>
-              <ol style={styles.historyList}>
-                {historyLoading && history.length === 0 && <li style={styles.noteEmpty}>Loading…</li>}
-                {history.map((h) => (
-                  <li key={h.id} style={styles.historyItem}>
-                    <span style={{ ...styles.historyDot, background: statusGroup(h.to_status).chart }} />
+            {modalTab === "status" && (
+              <div style={styles.tabPanel}>
+                <div style={styles.modalStatusRow}>
+                  <StatusSelect
+                    value={selectedLead.status}
+                    onChange={(v) => updateStatus(selectedLead.id, v)}
+                    large
+                  />
+                  {selectedLead.status_updated_at && (
+                    <span style={styles.statusUpdated}>Last changed {formatDate(selectedLead.status_updated_at)}</span>
+                  )}
+                </div>
+                <span style={styles.modalLabel}>Status History</span>
+                <TwoVisibleList as="ol" style={styles.historyList} deps={[history, selectedLead.id]}>
+                  {historyLoading && history.length === 0 && <li style={styles.noteEmpty}>Loading…</li>}
+                  {history.map((h) => (
+                    <li key={h.id} style={styles.historyItem}>
+                      <span style={{ ...styles.historyDot, background: statusGroup(h.to_status).chart }} />
+                      <div style={styles.historyBody}>
+                        <span style={styles.historyChange}>
+                          {h.from_status ? <span style={styles.historyFrom}>{h.from_status} → </span> : null}
+                          <strong style={{ color: statusGroup(h.to_status).color }}>{h.to_status}</strong>
+                        </span>
+                        <span style={styles.historyMeta}>
+                          {formatDate(h.changed_at)}
+                          {h.changed_by ? ` · by ${h.changed_by}` : ""}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                  <li style={styles.historyItem}>
+                    <span style={{ ...styles.historyDot, background: statusGroup("New Lead").chart }} />
                     <div style={styles.historyBody}>
                       <span style={styles.historyChange}>
-                        {h.from_status ? <span style={styles.historyFrom}>{h.from_status} → </span> : null}
-                        <strong style={{ color: statusGroup(h.to_status).color }}>{h.to_status}</strong>
+                        Enquiry received · <strong style={{ color: statusGroup("New Lead").color }}>New Lead</strong>
                       </span>
                       <span style={styles.historyMeta}>
-                        {formatDate(h.changed_at)}
-                        {h.changed_by ? ` · by ${h.changed_by}` : ""}
+                        {formatDate(selectedLead.created_at)} · {selectedLead.source || "Website"}
                       </span>
                     </div>
                   </li>
-                ))}
-                <li style={styles.historyItem}>
-                  <span style={{ ...styles.historyDot, background: statusGroup("New Lead").chart }} />
-                  <div style={styles.historyBody}>
-                    <span style={styles.historyChange}>
-                      Enquiry received · <strong style={{ color: statusGroup("New Lead").color }}>New Lead</strong>
-                    </span>
-                    <span style={styles.historyMeta}>
-                      {formatDate(selectedLead.created_at)} · {selectedLead.source || "Website"}
-                    </span>
-                  </div>
-                </li>
-              </ol>
-            </div>
-
-            <div style={styles.notesBox}>
-              <span style={styles.modalLabel}>Notes</span>
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    addNote();
-                  }
-                }}
-                placeholder="Add a note — e.g. Called, asked to call back on Monday evening"
-                maxLength={2000}
-                rows={3}
-                style={styles.noteInput}
-              />
-              <div style={styles.noteBar}>
-                <span style={styles.noteHint}>{noteError || "Ctrl + Enter to save"}</span>
-                <button
-                  onClick={addNote}
-                  disabled={!noteText.trim() || noteSaving}
-                  style={{ ...styles.noteAddBtn, opacity: !noteText.trim() || noteSaving ? 0.5 : 1 }}
-                >
-                  {noteSaving ? "Saving…" : "Add Note"}
-                </button>
+                </TwoVisibleList>
               </div>
+            )}
 
-              <div style={styles.noteList}>
-                {notesLoading && <span style={styles.noteEmpty}>Loading notes…</span>}
-                {!notesLoading && notes.length === 0 && (
-                  <span style={styles.noteEmpty}>No notes yet.</span>
-                )}
-                {notes.map((n) => (
-                  <div key={n.id} style={styles.noteItem}>
-                    <div style={styles.noteTop}>
-                      <span style={styles.noteDate}>{formatDate(n.created_at)}</span>
-                      <button onClick={() => removeNote(n.id)} style={styles.noteDel} aria-label="Delete note">
-                        ✕
-                      </button>
+            {modalTab === "notes" && (
+              <div style={styles.tabPanel}>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      addNote();
+                    }
+                  }}
+                  placeholder="Add a note — e.g. Called, asked to call back on Monday evening"
+                  maxLength={2000}
+                  rows={3}
+                  style={styles.noteInput}
+                />
+                <div style={styles.noteBar}>
+                  <span style={styles.noteHint}>{noteError || "Ctrl + Enter to save"}</span>
+                  <button
+                    onClick={addNote}
+                    disabled={!noteText.trim() || noteSaving}
+                    style={{ ...styles.noteAddBtn, opacity: !noteText.trim() || noteSaving ? 0.5 : 1 }}
+                  >
+                    {noteSaving ? "Saving…" : "Add Note"}
+                  </button>
+                </div>
+
+                <TwoVisibleList style={styles.noteList} deps={[notes, editingNoteId, selectedLead.id]}>
+                  {notesLoading && <span style={styles.noteEmpty}>Loading notes…</span>}
+                  {!notesLoading && notes.length === 0 && <span style={styles.noteEmpty}>No notes yet.</span>}
+                  {notes.map((n) => (
+                    <div key={n.id} style={styles.noteItem}>
+                      <div style={styles.noteTop}>
+                        <span style={styles.noteDate}>
+                          {formatDate(n.created_at)}
+                          {n.updated_at ? <span style={styles.noteEdited}> · edited {formatDate(n.updated_at)}</span> : null}
+                        </span>
+                        {editingNoteId !== n.id && (
+                          <button onClick={() => startEdit(n)} style={styles.noteEditBtn}>
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                      {editingNoteId === n.id ? (
+                        <>
+                          <textarea
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                                e.preventDefault();
+                                saveEdit();
+                              }
+                              if (e.key === "Escape") {
+                                e.stopPropagation();
+                                setEditingNoteId(null);
+                              }
+                            }}
+                            maxLength={2000}
+                            rows={3}
+                            autoFocus
+                            style={{ ...styles.noteInput, minHeight: "64px", marginTop: "4px" }}
+                          />
+                          <div style={{ ...styles.noteBar, justifyContent: "flex-end", marginTop: "8px" }}>
+                            <button onClick={() => setEditingNoteId(null)} style={styles.noteCancelBtn}>
+                              Cancel
+                            </button>
+                            <button
+                              onClick={saveEdit}
+                              disabled={!editText.trim() || editSaving}
+                              style={{ ...styles.noteAddBtn, opacity: !editText.trim() || editSaving ? 0.5 : 1 }}
+                            >
+                              {editSaving ? "Saving…" : "Save"}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <p style={styles.noteText}>{n.note}</p>
+                      )}
                     </div>
-                    <p style={styles.noteText}>{n.note}</p>
-                  </div>
-                ))}
+                  ))}
+                </TwoVisibleList>
               </div>
-            </div>
+            )}
 
             <div className="pn-modal-actions" style={styles.modalActions}>
               <a href={`tel:${selectedLead.phone}`} style={styles.modalCallBtn}>
@@ -1103,6 +1224,36 @@ export default function AdminPanelPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Scroll box that is exactly tall enough to show the first two items; the rest scroll.
+function TwoVisibleList({ as: Tag = "div", style, deps = [], children }) {
+  const ref = useRef(null);
+  const [maxH, setMaxH] = useState(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const kids = Array.from(el.children).filter((c) => c.offsetHeight > 0);
+      if (kids.length <= 2) return setMaxH(null);
+      const top = kids[0].offsetTop;
+      const second = kids[1];
+      setMaxH(second.offsetTop + second.offsetHeight - top + 4);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return (
+    <Tag
+      ref={ref}
+      style={{ ...style, maxHeight: maxH ? `${maxH}px` : "none", overflowY: maxH ? "auto" : "visible", position: "relative" }}
+    >
+      {children}
+    </Tag>
   );
 }
 
@@ -1282,7 +1433,9 @@ const RESPONSIVE_CSS = `
   .pn-title { font-size: 24px !important; }
   .pn-search { flex: 1 1 100% !important; }
   .pn-select { width: 100% !important; }
-  .pn-filters > label { flex: 1 1 calc(50% - 10px); min-width: 0; }
+  .pn-filters > label, .pn-filters > div { flex: 1 1 calc(50% - 10px); min-width: 0; }
+  .pn-filters .pn-month { flex: 1 1 100% !important; }
+  .pn-filters select[aria-label="Month"] { flex: 1 1 auto; width: auto !important; min-width: 0; }
   .pn-filters > button { flex: 1 1 100%; }
   .pn-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
   .pn-chart-card { grid-column: 1 / -1 !important; grid-row: auto !important; }
@@ -1655,6 +1808,45 @@ const styles = {
     flexWrap: "nowrap",
     gap: "10px",
     flex: "0 0 auto",
+  },
+  monthNav: {
+    display: "flex",
+    alignItems: "center",
+    height: "40px",
+    border: "1.5px solid #dfd8dc",
+    borderRadius: "9px",
+    background: "#fff",
+    overflow: "hidden",
+  },
+  monthArrow: {
+    width: "32px",
+    height: "100%",
+    border: 0,
+    background: "transparent",
+    color: "#812e5a",
+    fontSize: "20px",
+    lineHeight: 1,
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  monthSelect: {
+    height: "100%",
+    width: "136px",
+    border: 0,
+    borderLeft: "1px solid #eee7ea",
+    borderRight: "1px solid #eee7ea",
+    background: "#fff",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#222",
+    textAlign: "center",
+    textAlignLast: "center",
+    appearance: "none",
+    WebkitAppearance: "none",
+    cursor: "pointer",
+    outline: "none",
+    padding: "0 6px",
   },
   filterField: {
     display: "flex",
@@ -2089,12 +2281,10 @@ const styles = {
   historyList: {
     listStyle: "none",
     margin: 0,
-    padding: "0 0 0 2px",
+    padding: "0 0 0 8px",
     display: "flex",
     flexDirection: "column",
     gap: "0",
-    maxHeight: "220px",
-    overflowY: "auto",
   },
   historyItem: {
     display: "flex",
@@ -2143,8 +2333,63 @@ const styles = {
     alignItems: "center",
     flexWrap: "wrap",
     gap: "10px 14px",
-    padding: "16px 0",
-    borderTop: "1px solid #ede8ea",
+    paddingBottom: "6px",
+  },
+  tabBar: {
+    display: "flex",
+    gap: "4px",
+    marginBottom: "20px",
+    borderBottom: "1px solid #ede8ea",
+    overflowX: "auto",
+  },
+  tabBtn: {
+    border: 0,
+    background: "transparent",
+    padding: "10px 14px",
+    marginBottom: "-1px",
+    borderBottom: "2px solid transparent",
+    fontFamily: "inherit",
+    fontSize: "13.5px",
+    fontWeight: "600",
+    color: "#7d7077",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  tabBtnActive: {
+    color: "#812e5a",
+    borderBottom: "2px solid #812e5a",
+  },
+  tabPanel: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    marginBottom: "20px",
+  },
+  noteEdited: {
+    fontWeight: "400",
+    color: "#8a7c84",
+  },
+  noteEditBtn: {
+    border: "1px solid #e3cddb",
+    background: "#fff",
+    color: "#812e5a",
+    borderRadius: "7px",
+    padding: "3px 10px",
+    fontSize: "12px",
+    fontWeight: "600",
+    fontFamily: "inherit",
+    cursor: "pointer",
+  },
+  noteCancelBtn: {
+    border: "1px solid #e2d9de",
+    background: "#fff",
+    color: "#52514e",
+    borderRadius: "9px",
+    padding: "9px 16px",
+    fontSize: "13.5px",
+    fontWeight: "600",
+    fontFamily: "inherit",
+    cursor: "pointer",
   },
   statusUpdated: {
     fontSize: "12px",
@@ -2198,7 +2443,7 @@ const styles = {
     flexDirection: "column",
     gap: "8px",
     marginTop: "4px",
-    marginBottom: "14px",
+    paddingRight: "2px",
   },
   noteEmpty: {
     fontSize: "13px",
@@ -2220,14 +2465,6 @@ const styles = {
     fontSize: "11.5px",
     fontWeight: "600",
     color: "#812e5a",
-  },
-  noteDel: {
-    border: 0,
-    background: "transparent",
-    color: "#a8979f",
-    cursor: "pointer",
-    fontSize: "12px",
-    padding: "2px 4px",
   },
   noteText: {
     margin: 0,
