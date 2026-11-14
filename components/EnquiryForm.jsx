@@ -31,6 +31,8 @@ export default function EnquiryForm({
       ? "Hero Section"
       : idPrefix === "pop"
       ? "Popup Modal"
+      : idPrefix === "contact"
+      ? "Contact Section"
       : "Website");
 
   // After a successful enquiry, show "Thank you" for 3 seconds,

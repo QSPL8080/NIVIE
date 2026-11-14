@@ -118,6 +118,13 @@ export default function Nav() {
           </nav>
 
           <div className="nav-right">
+            <a href={`tel:+91${site.phone}`} className="nav-phone" aria-label={`Call ${site.phoneDisplay}`}>
+              <Icon name="phone" />
+              <span>+91 {site.phoneDisplay}</span>
+            </a>
+            <a href="#enquire" className="nav-enquire">
+              Enquire now
+            </a>
             <button
               type="button"
               className="menu-btn"

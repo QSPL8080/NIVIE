@@ -40,7 +40,7 @@ export default function EnquiryPopup() {
     if (isDone()) return;
     timer.current = setTimeout(function tryOpen() {
       const busy =
-        document.activeElement?.closest?.(".hero-form") ||
+        document.activeElement?.closest?.(".hero-form, .contact-form") ||
         document.querySelector(".menu.is-open, .drawer.is-open");
       if (busy) {
         timer.current = setTimeout(tryOpen, 5000); // try again shortly
