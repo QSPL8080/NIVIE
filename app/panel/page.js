@@ -14,6 +14,13 @@ const ACTIVITY_KEY = "nivie_admin_last_active"; // shared by all open panel tabs
 const istDate = (d) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" })
     .format(d ? new Date(d) : new Date()); // "2026-11-14"
+const shiftMonth = (ym, delta) => {
+  let [y, m] = ym.split("-").map(Number);
+  m += delta;
+  while (m < 1) { m += 12; y -= 1; }
+  while (m > 12) { m -= 12; y += 1; }
+  return `${y}-${String(m).padStart(2, "0")}`;
+};
 const formatDay = (ymd) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
@@ -403,29 +410,25 @@ export default function AdminPanelPage() {
     return Array.from(s);
   }, [leads]);
 
-  // Months for the month filter: every month from the first lead up to the live month
+  // Months in the month dropdown: the last 12 months, every older month that has leads,
+  // and whatever month the arrows are on (newest first).
   const monthOptions = useMemo(() => {
-    let first = liveMonth;
+    let first = shiftMonth(liveMonth, -11);
     leads.forEach((l) => {
       if (l.created_at) {
         const ym = istDate(l.created_at).slice(0, 7);
         if (ym < first) first = ym;
       }
     });
+    const chosen = monthFilter !== "all" && monthFilter !== "current" ? monthFilter : null;
+    if (chosen && chosen < first) first = chosen;
+    const last = chosen && chosen > liveMonth ? chosen : liveMonth;
     const list = [];
-    let [y, m] = liveMonth.split("-").map(Number);
-    while (true) {
-      const ym = `${y}-${String(m).padStart(2, "0")}`;
-      list.push(ym);
-      if (ym <= first || list.length > 240) break;
-      m -= 1;
-      if (m === 0) { m = 12; y -= 1; }
-    }
+    for (let ym = last; ym >= first && list.length < 400; ym = shiftMonth(ym, -1)) list.push(ym);
     return list;
-  }, [leads, liveMonth]);
+  }, [leads, liveMonth, monthFilter]);
 
   const activeMonth = monthFilter === "current" ? liveMonth : monthFilter; // "all" or "YYYY-MM"
-  const firstMonth = monthOptions[monthOptions.length - 1];
 
   // Choosing the live month keeps it "live" (it moves on by itself when the month changes)
   const pickMonth = (ym) => {
@@ -433,19 +436,15 @@ export default function AdminPanelPage() {
     setDateFrom("");
     setDateTo("");
   };
-  const shiftMonth = (ym, delta) => {
-    let [y, m] = ym.split("-").map(Number);
-    m += delta;
-    while (m < 1) { m += 12; y -= 1; }
-    while (m > 12) { m -= 12; y += 1; }
-    return `${y}-${String(m).padStart(2, "0")}`;
-  };
-  const canPrev = activeMonth === "all" ? true : activeMonth > firstMonth;
-  const canNext = activeMonth !== "all" && activeMonth < liveMonth;
+  // Arrows always work — any month can be opened (months with no leads simply show 0).
+  const MIN_MONTH = "2020-01";
+  const MAX_MONTH = shiftMonth(liveMonth, 12);
+  const canPrev = activeMonth === "all" || activeMonth > MIN_MONTH;
+  const canNext = activeMonth === "all" || activeMonth < MAX_MONTH;
   const stepMonth = (delta) => {
-    if (activeMonth === "all") return pickMonth(liveMonth); // from "All months", ‹ jumps to the current month
+    if (activeMonth === "all") return pickMonth(liveMonth); // from "All months", either arrow goes to the current month
     const next = shiftMonth(activeMonth, delta);
-    if (next > liveMonth || next < firstMonth) return;
+    if (next < MIN_MONTH || next > MAX_MONTH) return;
     pickMonth(next);
   };
   const periodLabel =
@@ -797,39 +796,37 @@ export default function AdminPanelPage() {
                     style={{ ...styles.selectFilter, width: "128px" }}
                   />
                 </label>
-                <label style={styles.filterField}>
+                <div className="pn-dd-field" style={styles.filterField}>
                   <span style={styles.filterLabel}>Source</span>
-                  <select
+                  <FilterDropdown
+                    ariaLabel="Filter by source"
+                    width={118}
                     value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    className="pn-select"
-                    style={{ ...styles.selectFilter, width: "118px" }}
-                  >
-                    <option value="all">All sources</option>
-                    {sources.map((src) => (
-                      <option key={src} value={src}>
-                        {src}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label style={styles.filterField}>
+                    onChange={setSourceFilter}
+                    options={[
+                      { value: "all", label: "All sources" },
+                      ...sources.map((src) => ({ value: src, label: src })),
+                    ]}
+                  />
+                </div>
+                <div className="pn-dd-field" style={styles.filterField}>
                   <span style={styles.filterLabel}>Status</span>
-                  <select
+                  <FilterDropdown
+                    ariaLabel="Filter by status"
+                    width={158}
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pn-select"
-                    style={{ ...styles.selectFilter, width: "158px" }}
-                    aria-label="Filter by status"
-                  >
-                    <option value="all">All statuses ({periodLeads.length})</option>
-                    {LEAD_STATUSES.map((st) => (
-                      <option key={st.value} value={st.value}>
-                        {st.value} ({statusCounts[st.value] || 0})
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    onChange={setStatusFilter}
+                    options={[
+                      { value: "all", label: "All statuses", count: periodLeads.length },
+                      ...LEAD_STATUSES.map((st) => ({
+                        value: st.value,
+                        label: st.value,
+                        count: statusCounts[st.value] || 0,
+                        dot: statusGroup(st.value).chart,
+                      })),
+                    ]}
+                  />
+                </div>
                 {filtersActive && (
                   <button onClick={clearFilters} style={styles.clearFiltersBtn}>
                     Reset
@@ -1227,6 +1224,120 @@ export default function AdminPanelPage() {
   );
 }
 
+// Dropdown for the filter bar. Unlike a plain <select>, its list always opens inside the
+// screen: it lines up with the right edge when there's no room on the right, opens upwards
+// when there's no room below, and scrolls when the list is long.
+function FilterDropdown({ value, onChange, options, width = 150, ariaLabel }) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState({ right: false, up: false, maxH: 320 });
+  const [active, setActive] = useState(0);
+  const wrap = useRef(null);
+  const list = useRef(null);
+  const current = options.find((o) => o.value === value) || options[0];
+  const text = (o) => (o.count !== undefined ? `${o.label} (${o.count})` : o.label);
+
+  const openList = () => {
+    const r = wrap.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    const up = below < 240 && above > below;
+    setPlace({
+      right: r.left + 300 > window.innerWidth - 12,
+      up,
+      maxH: Math.max(160, Math.min(380, up ? above : below)),
+    });
+    setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    setOpen(true);
+  };
+  const choose = (o) => {
+    onChange(o.value);
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => wrap.current && !wrap.current.contains(e.target) && setOpen(false);
+    const onResize = () => setOpen(false);
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close);
+    window.addEventListener("resize", onResize);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) list.current?.children[active]?.scrollIntoView({ block: "nearest" });
+  }, [open, active]);
+
+  const onKey = (e) => {
+    if (!open && ["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
+      e.preventDefault();
+      return openList();
+    }
+    if (!open) return;
+    if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(options.length - 1, a + 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(options[active]); }
+    else if (e.key === "Tab") setOpen(false);
+  };
+
+  return (
+    <div ref={wrap} className="pn-dd" style={{ position: "relative", width: `${width}px` }}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => (open ? setOpen(false) : openList())}
+        onKeyDown={onKey}
+        style={styles.ddButton}
+      >
+        <span style={styles.ddButtonText}>{text(current)}</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true" style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          ref={list}
+          role="listbox"
+          aria-label={ariaLabel}
+          style={{
+            ...styles.ddList,
+            maxHeight: `${place.maxH}px`,
+            ...(place.right ? { right: 0 } : { left: 0 }),
+            ...(place.up ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
+          }}
+        >
+          {options.map((o, i) => (
+            <li
+              key={o.value}
+              role="option"
+              aria-selected={o.value === value}
+              onMouseEnter={() => setActive(i)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(o)}
+              style={{
+                ...styles.ddItem,
+                ...(i === active ? styles.ddItemActive : null),
+                ...(o.value === value ? styles.ddItemSelected : null),
+              }}
+            >
+              {o.dot ? <span style={{ ...styles.ddDot, background: o.dot }} /> : null}
+              <span style={{ flex: 1 }}>{o.label}</span>
+              {o.count !== undefined ? <span style={styles.ddCount}>{o.count}</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // Scroll box that is exactly tall enough to show the first two items; the rest scroll.
 function TwoVisibleList({ as: Tag = "div", style, deps = [], children }) {
   const ref = useRef(null);
@@ -1401,6 +1512,10 @@ function getSourceBadgeStyle(source = "") {
 
 /* ---- Responsive layout (inline styles above are the desktop design) ---- */
 const RESPONSIVE_CSS = `
+/* very wide screens: keep the content at a comfortable reading width, centred */
+@media (min-width: 2000px) {
+  .pn-main > * { max-width: 1800px; margin-left: auto !important; margin-right: auto !important; }
+}
 @media (max-width: 1365px) {
   .pn-toolbar { flex-wrap: wrap !important; }
   .pn-search { flex: 1 1 100% !important; }
@@ -1435,6 +1550,7 @@ const RESPONSIVE_CSS = `
   .pn-select { width: 100% !important; }
   .pn-filters > label, .pn-filters > div { flex: 1 1 calc(50% - 10px); min-width: 0; }
   .pn-filters .pn-month { flex: 1 1 100% !important; }
+  .pn-filters .pn-dd { width: 100% !important; }
   .pn-filters select[aria-label="Month"] { flex: 1 1 auto; width: auto !important; min-width: 0; }
   .pn-filters > button { flex: 1 1 100%; }
   .pn-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
@@ -1808,6 +1924,76 @@ const styles = {
     flexWrap: "nowrap",
     gap: "10px",
     flex: "0 0 auto",
+  },
+  ddButton: {
+    width: "100%",
+    height: "40px",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "6px",
+    padding: "0 10px 0 12px",
+    borderRadius: "9px",
+    border: "1.5px solid #dfd8dc",
+    background: "#ffffff",
+    fontFamily: "inherit",
+    fontSize: "13px",
+    color: "#222",
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  ddButtonText: {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  ddList: {
+    position: "absolute",
+    zIndex: 80,
+    minWidth: "100%",
+    width: "max-content",
+    maxWidth: "calc(100vw - 24px)",
+    overflowY: "auto",
+    margin: 0,
+    padding: "6px",
+    listStyle: "none",
+    background: "#fff",
+    border: "1px solid #e6dee2",
+    borderRadius: "12px",
+    boxShadow: "0 18px 40px rgba(36, 8, 22, 0.16)",
+    boxSizing: "border-box",
+  },
+  ddItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "8px 10px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    color: "#222",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  ddItemActive: {
+    background: "#f6eef2",
+  },
+  ddItemSelected: {
+    fontWeight: "700",
+    color: "#812e5a",
+  },
+  ddDot: {
+    width: "9px",
+    height: "9px",
+    borderRadius: "3px",
+    flexShrink: 0,
+  },
+  ddCount: {
+    minWidth: "22px",
+    textAlign: "right",
+    fontSize: "12px",
+    color: "#7d7077",
+    fontVariantNumeric: "tabular-nums",
   },
   monthNav: {
     display: "flex",
