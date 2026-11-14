@@ -173,10 +173,10 @@ export function Why() {
 export function Cta() {
   return (
     <section className="cta" aria-labelledby="cta-title">
-      <div className="cta-float f1" data-speed="-0.25" data-float><img src="/images/cta-1.jpg" alt="" loading="lazy" /></div>
-      <div className="cta-float f2" data-speed="0.3" data-float><img src="/images/cta-2.jpg" alt="" loading="lazy" /></div>
-      <div className="cta-float f3" data-speed="0.2" data-float><img src="/images/cta-3.jpg" alt="" loading="lazy" /></div>
-      <div className="cta-float f4" data-speed="-0.3" data-float><img src="/images/cta-4.jpg" alt="" loading="lazy" /></div>
+      <div className="cta-float f1" data-speed="-0.25" data-float><img src="/images/moment-1.jpg" alt="" loading="lazy" /></div>
+      <div className="cta-float f2" data-speed="0.3" data-float><img src="/images/moment-2.jpg" alt="" loading="lazy" /></div>
+      <div className="cta-float f3" data-speed="0.2" data-float><img src="/images/moment-3.jpg" alt="" loading="lazy" /></div>
+      <div className="cta-float f4" data-speed="-0.3" data-float><img src="/images/moment-4.jpg" alt="" loading="lazy" /></div>
 
       <div className="wrap">
         <h2 id="cta-title" className="display" data-lines>
