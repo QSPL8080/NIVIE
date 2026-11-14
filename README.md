@@ -85,6 +85,19 @@ the reason is printed in the terminal as `[leads] MySQL save failed: …`.
 
 4. **Deploy.** From now on every `git push` to `main` rebuilds the site and updates the database.
 
+### WhatsApp alert for every new enquiry
+
+Each enquiry is also sent to WhatsApp (name, mobile, budget, location, property, timeline,
+form, date & time in IST, lead ID and a link to the panel). Set up once:
+
+1. On the phone with WhatsApp **+91 92263 33902**, open
+   https://www.callmebot.com/blog/free-api-whatsapp-messages/ and save the CallMeBot number shown there.
+2. Send it: `I allow callmebot to send me messages` — it replies with an **API key**.
+3. In hPanel → Environment variables add `WHATSAPP_NOTIFY_PHONE=+919226333902`,
+   `CALLMEBOT_APIKEY=<the key>` and `SITE_URL=https://niviedesignsstudio.com`, then redeploy.
+
+If the alert can't be sent, the enquiry is still saved and the reason appears in the logs as `[whatsapp] Not sent: …`.
+
 ## Where to edit
 
 | What | File |
@@ -97,7 +110,9 @@ the reason is printed in the terminal as `[leads] MySQL save failed: …`.
 | Animations (loader, cursor, scroll effects) | `components/Experience.jsx` |
 | Images | `public/images/` |
 | Database tables / changes | `lib/migrations.mjs` |
+| Lead status options & colours | `lib/leadStatus.js` |
+| WhatsApp alert text | `lib/notify.js` |
 
 ## Fonts
 
-Bodoni Moda (headings) and Familjen Grotesk (text), self-hosted through `@fontsource` — no external font requests.
+Cormorant Garamond (headings) and Inter (text), self-hosted through `@fontsource` — no external font requests.

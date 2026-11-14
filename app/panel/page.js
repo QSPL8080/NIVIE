@@ -3,11 +3,25 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { LEAD_STATUSES, STATUS_GROUPS, statusColors, statusGroup } from "@/lib/leadStatus";
 
 // Must match IDLE_MINUTES in lib/auth.js
 const IDLE_MS = 10 * 60 * 1000;
 const PING_EVERY_MS = 60 * 1000; // extend the server session at most once a minute while active
 const ACTIVITY_KEY = "nivie_admin_last_active"; // shared by all open panel tabs
+
+// Dates are compared in India time, so a lead at 11:30 pm stays on the right day/month.
+const istDate = (d) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(d ? new Date(d) : new Date()); // "2026-11-14"
+const formatDay = (ymd) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+};
+const monthLabel = (ym) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, 15)).toLocaleString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+};
 
 export default function AdminPanelPage() {
   const router = useRouter();
@@ -17,6 +31,17 @@ export default function AdminPanelPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  // "current" always means the live month (it moves to the next month by itself)
+  const [monthFilter, setMonthFilter] = useState("current");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [today, setToday] = useState(() => istDate());
+  useEffect(() => {
+    const t = setInterval(() => setToday(istDate()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const liveMonth = today.slice(0, 7);
   const [selectedLead, setSelectedLead] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   // Authenticate & fetch user
@@ -40,8 +65,10 @@ export default function AdminPanelPage() {
 
   // silent = true for the 5-second auto refresh (no spinner, no flicker)
   const lastLeadsJson = useRef("");
+  const busy = useRef(0); // >0 while a status/note is being saved → skip auto refresh
   const loadLeads = useCallback(async (silent = false) => {
     silent = silent === true;
+    if (silent && busy.current > 0) return;
     if (!silent) {
       setLoading(true);
       setError("");
@@ -154,6 +181,156 @@ export default function AdminPanelPage() {
     };
   }, [user, handleLogout]);
 
+  // ---- Lead status ----
+  const updateStatus = async (id, status) => {
+    const before = leads.find((l) => l.id === id)?.status;
+    if (!status || status === before) return;
+    busy.current++;
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
+    try {
+      const res = await fetch("/api/admin/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.status === 401) return handleLogout("expired");
+      const data = await res.json();
+      if (data.success) {
+        if (data.changedAt) {
+          setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status_updated_at: data.changedAt } : l)));
+        }
+        if (id === selectedLeadIdRef.current) loadHistory(id);
+      } else {
+        if (data.notFound) {
+          setLeads((prev) => prev.filter((l) => l.id !== id));
+          setSelectedLead((cur) => (cur?.id === id ? null : cur));
+        } else {
+          setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: before } : l)));
+        }
+        alert(data.error || "Could not update the status.");
+      }
+    } catch {
+      setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: before } : l)));
+      alert("Error connecting to server. Status not changed.");
+    } finally {
+      busy.current--;
+    }
+  };
+
+  // ---- Notes (shown in the details pop-up) ----
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState("");
+  const openLeadId = selectedLead?.id;
+  const selectedLeadIdRef = useRef(null);
+  selectedLeadIdRef.current = openLeadId ?? null;
+
+  // ---- Status history (every change, with date/time and who) ----
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const loadHistory = useCallback(
+    async (leadId) => {
+      try {
+        const res = await fetch(`/api/admin/history?leadId=${leadId}`, { cache: "no-store" });
+        if (res.status === 401) return handleLogout("expired");
+        const data = await res.json();
+        if (data.success && selectedLeadIdRef.current === leadId) setHistory(data.history || []);
+      } catch {}
+    },
+    [handleLogout]
+  );
+  useEffect(() => {
+    setHistory([]);
+    if (!openLeadId) return;
+    setHistoryLoading(true);
+    loadHistory(openLeadId).finally(() => setHistoryLoading(false));
+  }, [openLeadId, loadHistory]);
+
+  useEffect(() => {
+    setNotes([]);
+    setNoteText("");
+    setNoteError("");
+    if (!openLeadId) return;
+    let cancelled = false;
+    setNotesLoading(true);
+    fetch(`/api/admin/notes?leadId=${openLeadId}`, { cache: "no-store" })
+      .then(async (res) => {
+        if (res.status === 401) return handleLogout("expired");
+        const data = await res.json();
+        if (!cancelled && data.success) setNotes(data.notes || []);
+      })
+      .catch(() => !cancelled && setNoteError("Could not load notes."))
+      .finally(() => !cancelled && setNotesLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [openLeadId, handleLogout]);
+
+  // keep the open pop-up in sync with the 5-second auto refresh
+  useEffect(() => {
+    if (!openLeadId) return;
+    const fresh = leads.find((l) => l.id === openLeadId);
+    if (fresh) setSelectedLead((cur) => (cur && cur !== fresh ? fresh : cur));
+  }, [leads, openLeadId]);
+
+  const syncNoteSummary = (leadId, list) => {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId ? { ...l, notes_count: list.length, last_note: list[0]?.note || null } : l
+      )
+    );
+  };
+
+  const addNote = async () => {
+    const text = noteText.trim();
+    if (!text || !openLeadId || noteSaving) return;
+    setNoteSaving(true);
+    setNoteError("");
+    busy.current++;
+    try {
+      const res = await fetch("/api/admin/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: openLeadId, note: text }),
+      });
+      if (res.status === 401) return handleLogout("expired");
+      const data = await res.json();
+      if (!data.success) {
+        setNoteError(data.error || "Could not save the note.");
+        return;
+      }
+      const list = [data.note, ...notes];
+      setNotes(list);
+      syncNoteSummary(openLeadId, list);
+      setNoteText("");
+    } catch {
+      setNoteError("Error connecting to server. Note not saved.");
+    } finally {
+      busy.current--;
+      setNoteSaving(false);
+    }
+  };
+
+  const removeNote = async (noteId) => {
+    if (!window.confirm("Delete this note?")) return;
+    busy.current++;
+    try {
+      const res = await fetch(`/api/admin/notes?id=${noteId}`, { method: "DELETE" });
+      if (res.status === 401) return handleLogout("expired");
+      const data = await res.json();
+      if (!data.success) return alert(data.error || "Could not delete the note.");
+      const list = notes.filter((n) => n.id !== noteId);
+      setNotes(list);
+      syncNoteSummary(openLeadId, list);
+    } catch {
+      alert("Error connecting to server. Note not deleted.");
+    } finally {
+      busy.current--;
+    }
+  };
+
   const handleDelete = async (id, e) => {
     e?.stopPropagation();
     if (!window.confirm("Delete this lead permanently? It will be removed from the database and cannot be recovered.")) return;
@@ -201,23 +378,79 @@ export default function AdminPanelPage() {
     return Array.from(s);
   }, [leads]);
 
-  // Filtered leads
+  // Months for the month filter: every month from the first lead up to the live month
+  const monthOptions = useMemo(() => {
+    let first = liveMonth;
+    leads.forEach((l) => {
+      if (l.created_at) {
+        const ym = istDate(l.created_at).slice(0, 7);
+        if (ym < first) first = ym;
+      }
+    });
+    const list = [];
+    let [y, m] = liveMonth.split("-").map(Number);
+    while (true) {
+      const ym = `${y}-${String(m).padStart(2, "0")}`;
+      list.push(ym);
+      if (ym <= first || list.length > 240) break;
+      m -= 1;
+      if (m === 0) { m = 12; y -= 1; }
+    }
+    return list;
+  }, [leads, liveMonth]);
+
+  const activeMonth = monthFilter === "current" ? liveMonth : monthFilter; // "all" or "YYYY-MM"
+  const periodLabel =
+    dateFrom || dateTo
+      ? `${dateFrom ? formatDay(dateFrom) : "Start"} – ${dateTo ? formatDay(dateTo) : "Today"}`
+      : activeMonth === "all"
+      ? "All time"
+      : monthLabel(activeMonth);
+
+  // Leads inside the chosen period (month + date range + source) — used by the chart and the table
+  const periodLeads = useMemo(() => {
+    return leads.filter((l) => {
+      if (sourceFilter !== "all" && l.source !== sourceFilter) return false;
+      const day = l.created_at ? istDate(l.created_at) : "";
+      if (activeMonth !== "all" && !day.startsWith(activeMonth)) return false;
+      if (dateFrom && day < dateFrom) return false;
+      if (dateTo && day > dateTo) return false;
+      return true;
+    });
+  }, [leads, sourceFilter, activeMonth, dateFrom, dateTo]);
+
+  // Table rows: period + status + search
   const filteredLeads = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter((l) => {
-      const matchSource = sourceFilter === "all" || l.source === sourceFilter;
-      if (!matchSource) return false;
+    const qDigits = q.replace(/\D/g, "");
+    return periodLeads.filter((l) => {
+      if (statusFilter !== "all" && (l.status || "New Lead") !== statusFilter) return false;
       if (!q) return true;
-      return (
-        l.name?.toLowerCase().includes(q) ||
-        l.phone?.toLowerCase().includes(q) ||
-        l.location?.toLowerCase().includes(q) ||
-        l.type?.toLowerCase().includes(q) ||
-        l.budget?.toLowerCase().includes(q) ||
-        l.source?.toLowerCase().includes(q)
-      );
+      if (qDigits.length >= 3 && (l.phone || "").replace(/\D/g, "").includes(qDigits)) return true;
+      return [l.name, l.phone, l.location, l.type, l.budget, l.timeline, l.source, l.status || "New Lead", l.last_note]
+        .some((v) => v && String(v).toLowerCase().includes(q));
     });
-  }, [leads, search, sourceFilter]);
+  }, [periodLeads, search, statusFilter]);
+
+  const filtersActive =
+    search || sourceFilter !== "all" || statusFilter !== "all" || monthFilter !== "current" || dateFrom || dateTo;
+  const clearFilters = () => {
+    setSearch("");
+    setSourceFilter("all");
+    setStatusFilter("all");
+    setMonthFilter("current");
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const statusCounts = useMemo(() => {
+    const c = {};
+    periodLeads.forEach((l) => {
+      const st = l.status || "New Lead";
+      c[st] = (c[st] || 0) + 1;
+    });
+    return c;
+  }, [periodLeads]);
 
   // Export to CSV
   const exportCSV = () => {
@@ -233,6 +466,9 @@ export default function AdminPanelPage() {
       "Property Location",
       "Property Type",
       "Project Timeline",
+      "Status",
+      "Notes",
+      "Latest Note",
     ];
 
     const rows = leads.map((l, idx) => [
@@ -246,6 +482,9 @@ export default function AdminPanelPage() {
       `"${(l.location || "").replace(/"/g, '""')}"`,
       `"${(l.type || "").replace(/"/g, '""')}"`,
       `"${(l.timeline || "").replace(/"/g, '""')}"`,
+      `"${(l.status || "New Lead").replace(/"/g, '""')}"`,
+      l.notes_count || 0,
+      `"${(l.last_note || "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`,
     ]);
 
     const csvContent =
@@ -265,12 +504,10 @@ export default function AdminPanelPage() {
   };
 
   // Metrics
-  const todayCount = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    return leads.filter(
-      (l) => l.created_at && new Date(l.created_at).toDateString() === todayStr
-    ).length;
-  }, [leads]);
+  const todayCount = useMemo(
+    () => leads.filter((l) => l.created_at && istDate(l.created_at) === today).length,
+    [leads, today]
+  );
 
   return (
     <div className="pn-layout" style={styles.layout}>
@@ -401,9 +638,9 @@ export default function AdminPanelPage() {
             {/* Quick Metrics (Full Width Grid) */}
             <div className="pn-metrics" style={styles.metricsGrid}>
               <div className="pn-metric" style={styles.metricCard}>
-                <span className="pn-metric-label" style={styles.metricLabel}>Total Received Leads</span>
-                <strong style={styles.metricVal}>{leads.length}</strong>
-                <span className="pn-metric-sub" style={styles.metricSub}>Recorded in MySQL leads table</span>
+                <span className="pn-metric-label" style={styles.metricLabel}>Leads · {periodLabel}</span>
+                <strong style={styles.metricVal}>{periodLeads.length}</strong>
+                <span className="pn-metric-sub" style={styles.metricSub}>{leads.length} received in total</span>
               </div>
 
               <div className="pn-metric" style={styles.metricCard}>
@@ -412,10 +649,13 @@ export default function AdminPanelPage() {
                 <span className="pn-metric-sub" style={styles.metricSub}>Received today</span>
               </div>
 
-              <div className="pn-metric" style={styles.metricCard}>
-                <span className="pn-metric-label" style={styles.metricLabel}>Active Lead Sources</span>
-                <strong style={styles.metricVal}>{sources.length || 1}</strong>
-                <span className="pn-metric-sub" style={styles.metricSub}>Hero form, popup &amp; website</span>
+              <div className="pn-chart-card" style={{ ...styles.metricCard, ...styles.chartCard }}>
+                <span className="pn-metric-label" style={styles.metricLabel}>Lead Status · {periodLabel}</span>
+                <StatusChart
+                  leads={periodLeads}
+                  activeStatus={statusFilter}
+                  onPick={(st) => setStatusFilter((cur) => (cur === st ? "all" : st))}
+                />
               </div>
             </div>
 
@@ -440,19 +680,95 @@ export default function AdminPanelPage() {
                 )}
               </div>
 
-              <div style={styles.toolActions}>
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="pn-select" style={styles.selectFilter}
-                >
-                  <option value="all">All Sources ({leads.length})</option>
-                  {sources.map((s) => (
-                    <option key={s} value={s}>
-                      Source: {s}
-                    </option>
-                  ))}
-                </select>
+              <div className="pn-filters" style={styles.toolActions}>
+                <label style={styles.filterField}>
+                  <span style={styles.filterLabel}>Month</span>
+                  <select
+                    value={monthFilter}
+                    onChange={(e) => {
+                      setMonthFilter(e.target.value);
+                      setDateFrom("");
+                      setDateTo("");
+                    }}
+                    className="pn-select"
+                    style={styles.selectFilter}
+                  >
+                    <option value="current">This month ({monthLabel(liveMonth)})</option>
+                    <option value="all">All months</option>
+                    {monthOptions.map((ym) => (
+                      <option key={ym} value={ym}>
+                        {monthLabel(ym)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={styles.filterField}>
+                  <span style={styles.filterLabel}>From</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    max={dateTo || today}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      if (e.target.value) setMonthFilter("all");
+                    }}
+                    className="pn-select"
+                    style={styles.selectFilter}
+                  />
+                </label>
+                <label style={styles.filterField}>
+                  <span style={styles.filterLabel}>To</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    max={today}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      if (e.target.value) setMonthFilter("all");
+                    }}
+                    className="pn-select"
+                    style={styles.selectFilter}
+                  />
+                </label>
+                <label style={styles.filterField}>
+                  <span style={styles.filterLabel}>Source</span>
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value)}
+                    className="pn-select"
+                    style={styles.selectFilter}
+                  >
+                    <option value="all">All sources</option>
+                    {sources.map((src) => (
+                      <option key={src} value={src}>
+                        {src}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label style={styles.filterField}>
+                  <span style={styles.filterLabel}>Status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="pn-select"
+                    style={styles.selectFilter}
+                    aria-label="Filter by status"
+                  >
+                    <option value="all">All statuses ({periodLeads.length})</option>
+                    {LEAD_STATUSES.map((st) => (
+                      <option key={st.value} value={st.value}>
+                        {st.value} ({statusCounts[st.value] || 0})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {filtersActive && (
+                  <button onClick={clearFilters} style={styles.clearFiltersBtn}>
+                    Reset filters
+                  </button>
+                )}
               </div>
             </div>
 
@@ -462,7 +778,7 @@ export default function AdminPanelPage() {
                 <div>
                   <h2 style={styles.tableTitle}>Client Enquiries</h2>
                   <span style={styles.tableCount}>
-                    Showing {filteredLeads.length} of {leads.length} recorded leads
+                    Showing {filteredLeads.length} of {periodLeads.length} leads · {periodLabel}
                   </span>
                 </div>
               </div>
@@ -475,6 +791,7 @@ export default function AdminPanelPage() {
                       <th style={styles.th}>Date &amp; Time</th>
                       <th style={styles.th}>Source</th>
                       <th style={styles.th}>Client Name</th>
+                      <th style={styles.th}>Status</th>
                       <th style={styles.th}>Mobile Number</th>
                       <th style={styles.th}>Interior Budget</th>
                       <th style={styles.th}>Location</th>
@@ -486,7 +803,7 @@ export default function AdminPanelPage() {
                   <tbody>
                     {loading && (
                       <tr>
-                        <td colSpan="10" style={styles.emptyTd}>
+                        <td colSpan="11" style={styles.emptyTd}>
                           <div style={styles.tableLoading}>
                             <div style={styles.miniSpinner} />
                             <span>Loading leads from MySQL...</span>
@@ -497,7 +814,7 @@ export default function AdminPanelPage() {
 
                     {!loading && filteredLeads.length === 0 && (
                       <tr>
-                        <td colSpan="10" style={styles.emptyTd}>
+                        <td colSpan="11" style={styles.emptyTd}>
                           <div style={styles.emptyState}>
                             <svg style={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                               <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -507,7 +824,9 @@ export default function AdminPanelPage() {
                             <strong>No enquiries found</strong>
                             <p style={styles.emptySub}>
                               {search
-                                ? `No enquiries matched "${search}".`
+                                ? `No enquiries matched "${search}" in ${periodLabel}.`
+                                : leads.length
+                                ? `No enquiries for ${periodLabel} with these filters. Try "All months" or Reset filters.`
                                 : "Submissions from your website enquiry forms will appear here automatically."}
                             </p>
                           </div>
@@ -539,6 +858,19 @@ export default function AdminPanelPage() {
                           </td>
                           <td className="pn-td-name" style={styles.tdName}>
                             <strong>{lead.name}</strong>
+                            {lead.notes_count > 0 && (
+                              <span style={styles.notesCount} title={lead.last_note || ""}>
+                                {lead.notes_count} {lead.notes_count === 1 ? "note" : "notes"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="pn-td-status" data-label="Status" style={styles.td} onClick={(e) => e.stopPropagation()}>
+                            <StatusSelect value={lead.status} onChange={(v) => updateStatus(lead.id, v)} />
+                            {lead.status_updated_at && (
+                              <span style={styles.statusStamp} title="Last status change">
+                                {formatDate(lead.status_updated_at)}
+                              </span>
+                            )}
                           </td>
                           <td data-label="Mobile" style={styles.td}>
                             <a
@@ -637,6 +969,97 @@ export default function AdminPanelPage() {
               </div>
             </div>
 
+            <div style={styles.modalStatusRow}>
+              <span style={styles.modalLabel}>Lead Status</span>
+              <StatusSelect
+                value={selectedLead.status}
+                onChange={(v) => updateStatus(selectedLead.id, v)}
+                large
+              />
+              {selectedLead.status_updated_at && (
+                <span style={styles.statusUpdated}>Last changed {formatDate(selectedLead.status_updated_at)}</span>
+              )}
+            </div>
+
+            <div style={styles.historyBox}>
+              <span style={styles.modalLabel}>Status History</span>
+              <ol style={styles.historyList}>
+                {historyLoading && history.length === 0 && <li style={styles.noteEmpty}>Loading…</li>}
+                {history.map((h) => (
+                  <li key={h.id} style={styles.historyItem}>
+                    <span style={{ ...styles.historyDot, background: statusGroup(h.to_status).chart }} />
+                    <div style={styles.historyBody}>
+                      <span style={styles.historyChange}>
+                        {h.from_status ? <span style={styles.historyFrom}>{h.from_status} → </span> : null}
+                        <strong style={{ color: statusGroup(h.to_status).color }}>{h.to_status}</strong>
+                      </span>
+                      <span style={styles.historyMeta}>
+                        {formatDate(h.changed_at)}
+                        {h.changed_by ? ` · by ${h.changed_by}` : ""}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+                <li style={styles.historyItem}>
+                  <span style={{ ...styles.historyDot, background: statusGroup("New Lead").chart }} />
+                  <div style={styles.historyBody}>
+                    <span style={styles.historyChange}>
+                      Enquiry received · <strong style={{ color: statusGroup("New Lead").color }}>New Lead</strong>
+                    </span>
+                    <span style={styles.historyMeta}>
+                      {formatDate(selectedLead.created_at)} · {selectedLead.source || "Website"}
+                    </span>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div style={styles.notesBox}>
+              <span style={styles.modalLabel}>Notes</span>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    addNote();
+                  }
+                }}
+                placeholder="Add a note — e.g. Called, asked to call back on Monday evening"
+                maxLength={2000}
+                rows={3}
+                style={styles.noteInput}
+              />
+              <div style={styles.noteBar}>
+                <span style={styles.noteHint}>{noteError || "Ctrl + Enter to save"}</span>
+                <button
+                  onClick={addNote}
+                  disabled={!noteText.trim() || noteSaving}
+                  style={{ ...styles.noteAddBtn, opacity: !noteText.trim() || noteSaving ? 0.5 : 1 }}
+                >
+                  {noteSaving ? "Saving…" : "Add Note"}
+                </button>
+              </div>
+
+              <div style={styles.noteList}>
+                {notesLoading && <span style={styles.noteEmpty}>Loading notes…</span>}
+                {!notesLoading && notes.length === 0 && (
+                  <span style={styles.noteEmpty}>No notes yet.</span>
+                )}
+                {notes.map((n) => (
+                  <div key={n.id} style={styles.noteItem}>
+                    <div style={styles.noteTop}>
+                      <span style={styles.noteDate}>{formatDate(n.created_at)}</span>
+                      <button onClick={() => removeNote(n.id)} style={styles.noteDel} aria-label="Delete note">
+                        ✕
+                      </button>
+                    </div>
+                    <p style={styles.noteText}>{n.note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="pn-modal-actions" style={styles.modalActions}>
               <a href={`tel:${selectedLead.phone}`} style={styles.modalCallBtn}>
                 <svg style={styles.btnIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -676,6 +1099,132 @@ export default function AdminPanelPage() {
   );
 }
 
+// Donut of leads by pipeline stage + a legend listing every status with its count.
+// Click a status in the legend to filter the table by it (click again to clear).
+function StatusChart({ leads, activeStatus, onPick }) {
+  const [hover, setHover] = useState(null);
+  const total = leads.length;
+  const statusCount = {};
+  leads.forEach((l) => {
+    const st = l.status || "New Lead";
+    statusCount[st] = (statusCount[st] || 0) + 1;
+  });
+  const groups = STATUS_GROUPS.map((g) => {
+    const items = LEAD_STATUSES.filter((st) => st.group === g.key).map((st) => ({
+      value: st.value,
+      count: statusCount[st.value] || 0,
+    }));
+    return { ...g, items, count: items.reduce((a, b) => a + b.count, 0) };
+  });
+
+  const R = 46;
+  const C = 2 * Math.PI * R;
+  const GAP = 2.2; // surface gap between slices
+  const visible = groups.filter((g) => g.count > 0);
+  let offset = 0;
+  const arcs = visible.map((g) => {
+    const len = (g.count / total) * C;
+    const dash = visible.length > 1 ? Math.max(len - GAP, 0.5) : len;
+    const arc = { g, dash, offset };
+    offset += len;
+    return arc;
+  });
+  const hovered = hover ? groups.find((g) => g.key === hover) : null;
+  const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
+
+  return (
+    <div className="pn-chart-wrap" style={styles.chartWrap}>
+      <div style={styles.donutBox}>
+        <svg viewBox="0 0 120 120" style={styles.donut} role="img" aria-label="Leads by status stage">
+          <circle cx="60" cy="60" r={R} fill="none" stroke="#f1ecef" strokeWidth="16" />
+          {arcs.map(({ g, dash, offset: off }) => (
+            <circle
+              key={g.key}
+              cx="60"
+              cy="60"
+              r={R}
+              fill="none"
+              stroke={g.chart}
+              strokeWidth={hover === g.key ? 19 : 16}
+              strokeDasharray={`${dash} ${C - dash}`}
+              strokeDashoffset={-off}
+              transform="rotate(-90 60 60)"
+              style={{ cursor: "pointer", transition: "stroke-width .15s", opacity: hover && hover !== g.key ? 0.45 : 1 }}
+              onMouseEnter={() => setHover(g.key)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <title>{`${g.label}: ${g.count} (${pct(g.count)}%)`}</title>
+            </circle>
+          ))}
+        </svg>
+        <div style={styles.donutCenter}>
+          <strong style={styles.donutNum}>{hovered ? hovered.count : total}</strong>
+          <span style={styles.donutCap}>{hovered ? `${hovered.label} · ${pct(hovered.count)}%` : "total leads"}</span>
+        </div>
+      </div>
+
+      <div className="pn-chart-legend" style={styles.legend}>
+        {groups.map((g) => (
+          <div
+            key={g.key}
+            style={{ ...styles.legendGroup, opacity: g.count ? 1 : 0.5 }}
+            onMouseEnter={() => g.count && setHover(g.key)}
+            onMouseLeave={() => setHover(null)}
+          >
+            <div style={styles.legendHead}>
+              <span style={{ ...styles.legendDot, background: g.chart }} />
+              <span style={styles.legendLabel}>{g.label}</span>
+              <span style={styles.legendCount}>
+                {g.count} <span style={styles.legendPct}>· {pct(g.count)}%</span>
+              </span>
+            </div>
+            {g.items
+              .filter((it) => it.count > 0)
+              .map((it) => (
+                <button
+                  key={it.value}
+                  onClick={() => onPick(it.value)}
+                  style={{ ...styles.legendItem, ...(activeStatus === it.value ? styles.legendItemActive : null) }}
+                  title={activeStatus === it.value ? "Show all leads" : `Show only "${it.value}"`}
+                >
+                  <span>{it.value}</span>
+                  <span>{it.count}</span>
+                </button>
+              ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusSelect({ value, onChange, large = false }) {
+  const current = value || "New Lead";
+  const c = statusColors(current);
+  return (
+    <select
+      value={current}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      aria-label="Lead status"
+      style={{
+        ...styles.statusSelect,
+        ...(large ? styles.statusSelectLarge : null),
+        color: c.color,
+        backgroundColor: c.bg,
+        borderColor: c.color + "55",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(c.color)}' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+      }}
+    >
+      {LEAD_STATUSES.map((st) => (
+        <option key={st.value} value={st.value} style={{ color: "#000", backgroundColor: "#fff" }}>
+          {st.value}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function getSourceBadgeStyle(source = "") {
   const isHero = source.toLowerCase().includes("hero");
   const isPop = source.toLowerCase().includes("pop");
@@ -696,7 +1245,6 @@ function getSourceBadgeStyle(source = "") {
 const RESPONSIVE_CSS = `
 @media (max-width: 1200px) {
   .pn-main { padding: 26px 24px 50px !important; }
-  .pn-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
   .pn-table { min-width: 980px; }
 }
 @media (max-width: 900px) {
@@ -722,7 +1270,10 @@ const RESPONSIVE_CSS = `
   .pn-title { font-size: 24px !important; }
   .pn-search { flex: 1 1 100% !important; }
   .pn-select { width: 100%; }
-  .pn-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 12px !important; }
+  .pn-filters > label { flex: 1 1 calc(50% - 10px); min-width: 0; }
+  .pn-filters > button { flex: 1 1 100%; }
+  .pn-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+  .pn-chart-card { grid-column: 1 / -1 !important; grid-row: auto !important; }
   /* table becomes a list of cards */
   .pn-table { min-width: 0; }
   .pn-thead { display: none; }
@@ -739,6 +1290,7 @@ const RESPONSIVE_CSS = `
   .pn-td-sr { display: none !important; }
   .pn-td-name { grid-column: 1 / -1; order: -2; font-size: 16px; }
   .pn-td-date { order: -1; }
+  .pn-td-status { grid-column: 1 / -1; order: -1; }
   .pn-td-actions { grid-column: 1 / -1; display: flex !important; justify-content: flex-end; gap: 8px; }
   .pn-table td[colspan] { display: block; }
 }
@@ -746,7 +1298,9 @@ const RESPONSIVE_CSS = `
   .pn-nav-label { display: none; }
   .pn-actions { width: 100%; }
   .pn-actions > * { flex: 1; justify-content: center; }
-  .pn-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 18px !important; }
+  .pn-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 18px !important; }
+  .pn-chart-wrap { flex-direction: column !important; align-items: stretch !important; }
+  .pn-chart-legend { grid-template-columns: 1fr !important; }
   .pn-metric { padding: 14px 12px !important; border-radius: 12px !important; }
   .pn-metric-label { font-size: 9.5px !important; letter-spacing: .04em !important; }
   .pn-metric strong { font-size: 26px !important; }
@@ -997,7 +1551,8 @@ const styles = {
   // METRICS (FULL WIDTH GRID)
   metricsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gridTemplateColumns: "minmax(220px, 1fr) minmax(0, 2.6fr)",
+    gridAutoRows: "auto",
     gap: "18px",
     marginBottom: "24px",
   },
@@ -1010,6 +1565,11 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: "5px",
+  },
+  chartCard: {
+    gridColumn: "2",
+    gridRow: "1 / span 2",
+    gap: "14px",
   },
   metricLabel: {
     fontSize: "11.5px",
@@ -1043,7 +1603,7 @@ const styles = {
   },
   toolSearchWrap: {
     position: "relative",
-    flex: "1 1 400px",
+    flex: "1 1 100%",
   },
   searchIcon: {
     position: "absolute",
@@ -1077,11 +1637,39 @@ const styles = {
   },
   toolActions: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-end",
+    flexWrap: "wrap",
     gap: "10px",
+    flex: "1 1 100%",
+  },
+  filterField: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  filterLabel: {
+    fontSize: "10.5px",
+    fontWeight: "700",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "#7d7077",
+  },
+  clearFiltersBtn: {
+    padding: "10px 14px",
+    borderRadius: "9px",
+    border: "1.5px solid #e3cddb",
+    background: "#fbf3f7",
+    color: "#812e5a",
+    fontSize: "13px",
+    fontWeight: "600",
+    fontFamily: "inherit",
+    cursor: "pointer",
   },
   selectFilter: {
-    padding: "10px 14px",
+    height: "40px",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+    padding: "0 12px",
     borderRadius: "9px",
     border: "1.5px solid #dfd8dc",
     background: "#ffffff",
@@ -1272,7 +1860,9 @@ const styles = {
   },
   modalCard: {
     width: "100%",
-    maxWidth: "560px",
+    maxWidth: "640px",
+    maxHeight: "calc(100vh - 40px)",
+    overflowY: "auto",
     backgroundColor: "#ffffff",
     borderRadius: "18px",
     padding: "32px",
@@ -1342,6 +1932,294 @@ const styles = {
     height: "16px",
     flexShrink: 0,
     display: "block",
+  },
+  statusSelect: {
+    appearance: "none",
+    WebkitAppearance: "none",
+    border: "1px solid",
+    borderRadius: "999px",
+    padding: "6px 30px 6px 12px",
+    fontSize: "12.5px",
+    fontWeight: "600",
+    fontFamily: "inherit",
+    cursor: "pointer",
+    maxWidth: "210px",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 10px center",
+    backgroundSize: "12px",
+    outline: "none",
+  },
+  statusSelectLarge: {
+    fontSize: "14px",
+    padding: "9px 34px 9px 14px",
+    maxWidth: "100%",
+  },
+  chartWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "26px",
+  },
+  donutBox: {
+    position: "relative",
+    width: "150px",
+    height: "150px",
+    flexShrink: 0,
+    alignSelf: "center",
+  },
+  donut: {
+    width: "100%",
+    height: "100%",
+    display: "block",
+  },
+  donutCenter: {
+    position: "absolute",
+    inset: "28px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    pointerEvents: "none",
+  },
+  donutNum: {
+    fontFamily: "var(--f-display, Georgia, serif)",
+    fontSize: "30px",
+    fontWeight: "500",
+    color: "#0b0b0b",
+    lineHeight: 1,
+  },
+  donutCap: {
+    marginTop: "4px",
+    fontSize: "10.5px",
+    lineHeight: 1.25,
+    color: "#52514e",
+  },
+  legend: {
+    flex: 1,
+    minWidth: 0,
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "8px 22px",
+    alignContent: "start",
+  },
+  legendGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    minWidth: 0,
+  },
+  legendHead: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "13px",
+  },
+  legendDot: {
+    width: "10px",
+    height: "10px",
+    borderRadius: "3px",
+    flexShrink: 0,
+  },
+  legendLabel: {
+    flex: 1,
+    fontWeight: "600",
+    color: "#0b0b0b",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  legendCount: {
+    fontWeight: "600",
+    color: "#0b0b0b",
+    whiteSpace: "nowrap",
+  },
+  legendPct: {
+    fontWeight: "400",
+    color: "#898781",
+  },
+  legendItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "8px",
+    marginLeft: "18px",
+    padding: "2px 6px",
+    border: 0,
+    borderRadius: "6px",
+    background: "transparent",
+    fontFamily: "inherit",
+    fontSize: "12px",
+    color: "#52514e",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  legendItemActive: {
+    background: "#f3e9ef",
+    color: "#0b0b0b",
+    fontWeight: "600",
+  },
+  statusStamp: {
+    display: "block",
+    marginTop: "5px",
+    fontSize: "11px",
+    color: "#8a7c84",
+    whiteSpace: "nowrap",
+  },
+  historyBox: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    padding: "4px 0 16px",
+  },
+  historyList: {
+    listStyle: "none",
+    margin: 0,
+    padding: "0 0 0 2px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0",
+    maxHeight: "220px",
+    overflowY: "auto",
+  },
+  historyItem: {
+    display: "flex",
+    gap: "12px",
+    padding: "8px 0",
+    borderLeft: "2px solid #eee5ea",
+    marginLeft: "5px",
+    paddingLeft: "14px",
+    position: "relative",
+  },
+  historyDot: {
+    position: "absolute",
+    left: "-7px",
+    top: "13px",
+    width: "12px",
+    height: "12px",
+    borderRadius: "50%",
+    border: "2px solid #fff",
+    boxSizing: "border-box",
+  },
+  historyBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  },
+  historyChange: {
+    fontSize: "13.5px",
+    color: "#222",
+  },
+  historyFrom: {
+    color: "#6f6268",
+  },
+  historyMeta: {
+    fontSize: "12px",
+    color: "#8a7c84",
+  },
+  notesCount: {
+    display: "block",
+    marginTop: "3px",
+    fontSize: "11.5px",
+    fontWeight: "500",
+    color: "#8a7c84",
+  },
+  modalStatusRow: {
+    display: "flex",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: "10px 14px",
+    padding: "16px 0",
+    borderTop: "1px solid #ede8ea",
+  },
+  statusUpdated: {
+    fontSize: "12px",
+    color: "#8a7c84",
+  },
+  notesBox: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    padding: "16px 0 4px",
+    borderTop: "1px solid #ede8ea",
+  },
+  noteInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    resize: "vertical",
+    minHeight: "76px",
+    padding: "12px 14px",
+    border: "1px solid #e2d9de",
+    borderRadius: "10px",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    color: "#111",
+    outline: "none",
+    background: "#fff",
+  },
+  noteBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+  },
+  noteHint: {
+    fontSize: "12px",
+    color: "#8a7c84",
+  },
+  noteAddBtn: {
+    border: 0,
+    borderRadius: "9px",
+    padding: "9px 18px",
+    background: "#812e5a",
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: "13.5px",
+    fontFamily: "inherit",
+    cursor: "pointer",
+  },
+  noteList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    marginTop: "4px",
+    marginBottom: "14px",
+  },
+  noteEmpty: {
+    fontSize: "13px",
+    color: "#9a8d94",
+  },
+  noteItem: {
+    background: "#faf6f8",
+    border: "1px solid #efe6eb",
+    borderRadius: "10px",
+    padding: "10px 12px",
+  },
+  noteTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "4px",
+  },
+  noteDate: {
+    fontSize: "11.5px",
+    fontWeight: "600",
+    color: "#812e5a",
+  },
+  noteDel: {
+    border: 0,
+    background: "transparent",
+    color: "#a8979f",
+    cursor: "pointer",
+    fontSize: "12px",
+    padding: "2px 4px",
+  },
+  noteText: {
+    margin: 0,
+    fontSize: "14px",
+    lineHeight: 1.5,
+    color: "#222",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
   },
   modalActions: {
     display: "flex",
