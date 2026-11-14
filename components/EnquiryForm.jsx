@@ -116,6 +116,10 @@ export default function EnquiryForm({
   const done = () => {
     onSent?.();
     window.dispatchEvent(new Event("nivie:enquiry-sent"));
+    // Meta Pixel: count this as a Lead (for ads tracking)
+    try {
+      window.fbq?.("track", "Lead", { content_name: computedSource });
+    } catch {}
   };
 
   const err = (k) => (

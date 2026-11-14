@@ -5,6 +5,7 @@ import Testimonials from "@/components/Testimonials";
 import Contact from "@/components/Contact";
 import CookieBanner from "@/components/CookieBanner";
 import EnquiryPopup from "@/components/EnquiryPopup";
+import MetaPixel from "@/components/MetaPixel";
 import LegalDrawer from "@/components/LegalDrawer";
 import { Cta, Footer, Hero, Instagram, Stories, Studio, Why } from "@/components/Sections";
 
@@ -33,6 +34,7 @@ export default function Home() {
       <CookieBanner />
       <EnquiryPopup />
       <Experience />
+      <MetaPixel />
     </>
   );
 }
