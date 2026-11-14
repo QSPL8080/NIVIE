@@ -147,7 +147,7 @@ export default function Testimonials() {
                 filter: off === 0 ? "none" : "saturate(.6) brightness(.9)",
               };
               return (
-                <figure key={q.name} style={style}>
+                <figure key={q.name} style={style} className={off === 0 ? "is-front" : undefined}>
                   <img src={q.img} alt="" loading="lazy" />
                 </figure>
               );

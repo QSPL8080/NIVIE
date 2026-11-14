@@ -43,7 +43,12 @@ export function Studio() {
         <figure className="studio-media" aria-hidden="true">
           <div className="studio-outline" data-studio-outline />
           <div className="studio-frame" data-studio-frame>
-            <img src="/images/studio.jpg" alt="" data-studio-img />
+            <img src="/images/studio-bedroom.jpg" alt="" data-studio-img />
+          </div>
+          <div className="studio-inset" data-studio-inset>
+            <div className="studio-inset-clip" data-studio-inset-clip>
+              <img src="/images/studio-detail.jpg" alt="" loading="lazy" />
+            </div>
           </div>
         </figure>
 
@@ -117,7 +122,10 @@ export function Stories() {
 /* ------------------------------------------------------------------ */
 export function Why() {
   return (
-    <section className="why" id="why" aria-labelledby="why-title">
+    <section className="why why--photo" id="why" aria-labelledby="why-title">
+      <div className="why-photo" aria-hidden="true">
+        <img src="/images/why-bg.jpg" alt="" loading="lazy" data-speed="0.22" />
+      </div>
       <div className="wrap">
         <div className="why-head">
           <div>
@@ -137,9 +145,9 @@ export function Why() {
           <svg className="why-svg" aria-hidden="true" data-why-svg>
             <defs>
               <linearGradient id="ribbonGold" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#d9a3bf" />
-                <stop offset="0.5" stopColor="#a8547f" />
-                <stop offset="1" stopColor="#812e5a" />
+                <stop offset="0" stopColor="#f3e3c3" />
+                <stop offset="0.5" stopColor="#dcc293" />
+                <stop offset="1" stopColor="#a8824f" />
               </linearGradient>
             </defs>
             <path className="ghost" data-why-ghost />

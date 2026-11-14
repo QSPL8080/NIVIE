@@ -5236,3 +5236,189 @@ h2.display {
 .eyebrow::before {
   background: var(--brass);
 }
+
+/* ==========================================================================
+   Photo refresh: studio composition, Why Nivie over a photo,
+   testimonial image reveals, CTA image hover
+   ========================================================================== */
+
+/* ---------- Studio: tall bedroom photo + overlapping detail photo ---------- */
+.studio .studio-media {
+  max-width: 470px;
+}
+.studio .studio-frame {
+  aspect-ratio: 2 / 3;
+  max-height: 80vh;
+  box-shadow: 0 60px 90px -60px rgba(42, 10, 26, 0.55);
+}
+.studio .studio-outline {
+  inset: -24px 24px 24px -24px;
+  border-color: var(--brass-line);
+}
+.studio-inset {
+  position: absolute;
+  z-index: 2;
+  right: -22%;
+  bottom: -9%;
+  width: 54%;
+  will-change: transform;
+}
+.studio-inset-clip {
+  aspect-ratio: 1 / 1.08;
+  overflow: hidden;
+  border: 8px solid #fff;
+  box-shadow: 0 40px 70px -32px rgba(42, 10, 26, 0.6);
+}
+.studio-inset-clip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.studio .studio-grid {
+  gap: clamp(60px, 9vw, 160px);
+}
+@media (max-width: 900px) {
+  .studio .studio-media {
+    max-width: 420px;
+    margin-bottom: 40px;
+  }
+  .studio-inset {
+    right: -6%;
+    bottom: -8%;
+    width: 46%;
+  }
+  .studio .studio-outline {
+    inset: -14px 14px 14px -14px;
+  }
+}
+@media (max-width: 560px) {
+  .studio .studio-media {
+    width: 86%;
+    justify-self: start;
+  }
+  .studio-inset {
+    right: -12%;
+  }
+  .studio-inset-clip {
+    border-width: 5px;
+  }
+}
+
+/* ---------- Why Nivie: dark section over the dining & living photo ---------- */
+.why.why--photo {
+  background: #1d0612;
+  color: #fff;
+  isolation: isolate;
+}
+.why--photo::before {
+  display: none;
+}
+.why-photo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+.why-photo img {
+  position: absolute;
+  left: 0;
+  top: -14%;
+  width: 100%;
+  height: 128%;
+  max-width: none;
+  object-fit: cover;
+}
+.why-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(29, 6, 18, 0.55) 0%, rgba(29, 6, 18, 0.15) 50%, rgba(29, 6, 18, 0.55) 100%),
+    linear-gradient(180deg, rgba(29, 6, 18, 0.86) 0%, rgba(42, 10, 26, 0.5) 45%, rgba(29, 6, 18, 0.88) 100%);
+}
+.why--photo h2,
+.why--photo .why-card h3 {
+  color: #fff;
+}
+.why--photo h2 em,
+.why--photo .gold-text {
+  color: var(--brass-light);
+}
+.why--photo .why-lead {
+  color: rgba(255, 255, 255, 0.9);
+}
+.why--photo h2,
+.why--photo .why-lead,
+.why--photo .why-card h3 {
+  text-shadow: 0 2px 24px rgba(29, 6, 18, 0.6);
+}
+.why--photo .why-ico {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(220, 194, 147, 0.5);
+  color: var(--brass-light);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.why--photo .why-node {
+  background: #2a0a1a;
+  border-color: rgba(220, 194, 147, 0.65);
+}
+.why--photo .why-node::after {
+  background: var(--brass-light);
+}
+.why--photo .why-svg .ghost {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+/* ---------- Testimonials: the photo in front unveils itself ---------- */
+.voices .stack {
+  max-width: 460px;
+}
+.voices .stack::before {
+  content: "";
+  position: absolute;
+  inset: 28px -28px -28px 28px;
+  border: 1px solid var(--brass-line);
+  pointer-events: none;
+}
+.stack figure.is-front {
+  animation: nv-unveil 1.2s cubic-bezier(0.77, 0, 0.18, 1) both;
+}
+.stack figure.is-front img {
+  animation: nv-drift 9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes nv-unveil {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes nv-drift {
+  from {
+    transform: scale(1.18);
+  }
+  to {
+    transform: scale(1.02);
+  }
+}
+
+/* ---------- CTA: floating photos ---------- */
+.cta-float {
+  opacity: 1;
+  border: 5px solid #fff;
+}
+.cta-float img {
+  transition: transform 1.2s var(--ease-out);
+}
+.cta-float:hover img {
+  transform: scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack figure.is-front,
+  .stack figure.is-front img {
+    animation: none;
+  }
+}

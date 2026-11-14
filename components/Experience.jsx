@@ -229,8 +229,16 @@ export default function Experience() {
             { clipPath: "inset(0% 0% 0% 0%)", duration: 1.6, ease: "expo.inOut" }, 0)
           .from("[data-studio-img]", { scale: 1.35, duration: 2.2 }, 0)
           .from("[data-studio-outline]", { opacity: 0, x: -22, y: -22, duration: 1.6 }, 0.6)
+          .fromTo("[data-studio-inset-clip]",
+            { clipPath: "inset(0% 0% 0% 100%)" },
+            { clipPath: "inset(0% 0% 0% 0%)", duration: 1.5, ease: "expo.inOut" }, 0.55)
+          .from("[data-studio-inset-clip] img", { scale: 1.3, duration: 2 }, 0.55)
           .from("[data-studio-rule]", { scaleX: 0, duration: 1.2 }, 0.7)
           .from("[data-studio-p]", { y: 40, opacity: 0, duration: 1.2, stagger: 0.15 }, 0.85);
+        gsap.fromTo("[data-studio-inset]", { y: 50 }, {
+          y: -50, ease: "none",
+          scrollTrigger: { trigger: "[data-studio]", start: "top bottom", end: "bottom top", scrub: true },
+        });
         gsap.fromTo("[data-studio-img]", { yPercent: -6 }, {
           yPercent: 6, ease: "none",
           scrollTrigger: { trigger: "[data-studio]", start: "top bottom", end: "bottom top", scrub: true },

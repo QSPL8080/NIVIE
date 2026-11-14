@@ -10,3 +10,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .vercel
+
+# raw photo source folder (optimised copies live in public/images)
+Nivi Design Images/
