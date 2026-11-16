@@ -285,8 +285,8 @@ export default function Experience() {
         });
         cards.forEach((card) => {
           const img = q("[data-story-img]", card);
-          gsap.fromTo(img, { xPercent: -6 }, {
-            xPercent: 6, ease: "none",
+          gsap.fromTo(img, { xPercent: -2.5 }, {
+            xPercent: 2.5, ease: "none",
             scrollTrigger: { trigger: card, containerAnimation: tween, start: "left right", end: "right left", scrub: true },
           });
         });

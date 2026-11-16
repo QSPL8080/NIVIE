@@ -5422,3 +5422,22 @@ h2.display {
     animation: none;
   }
 }
+
+/* ---------- Design Stories: keep project images crisp ---------- */
+.story-media {
+  transform: none;
+}
+.story:hover .story-media {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+}
+.story-media img {
+  left: -3%;
+  width: 106%;
+  filter: none;
+}
+.story:hover .story-media img {
+  filter: none;
+}
+.story-media::after {
+  display: none;
+}
