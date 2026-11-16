@@ -4778,6 +4778,13 @@ h2.display {
     min-height: 0;
     padding-top: 120px;
   }
+  .hero-bg {
+    inset: 0 !important;
+  }
+  .hero-bg .hero-video,
+  .hero-bg .hero-poster {
+    object-position: center 35%;
+  }
   .hero-form {
     max-width: 600px;
   }
