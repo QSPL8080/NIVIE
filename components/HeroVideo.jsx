@@ -16,9 +16,12 @@ export default function HeroVideo() {
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const saveData = navigator.connection && navigator.connection.saveData;
-    if (reduce || saveData) return;
-    setSrc(window.matchMedia("(max-width: 900px)").matches ? "/video/hero-mobile.mp4" : "/video/hero.mp4");
+    if (reduce) return;
+
+    // Serve Full HD (hero.mp4) for crisp clarity on Retina mobile & tablet screens.
+    // Only fall back to compressed 540p if user explicitly turned on Data Saver or is on 2G.
+    const isDataSaver = navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === "2g");
+    setSrc(isDataSaver ? "/video/hero-mobile.mp4" : "/video/hero.mp4");
   }, []);
 
   useEffect(() => {
