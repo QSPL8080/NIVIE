@@ -5441,3 +5441,36 @@ h2.display {
 .story-media::after {
   display: none;
 }
+
+/* ---------- Contact: interior photo behind a soft cream wash ---------- */
+.contact {
+  isolation: isolate;
+  background: #efeceb;
+}
+.contact::before {
+  display: block;
+  content: "";
+  position: absolute;
+  inset: 0;
+  right: 0;
+  top: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  z-index: -2;
+  background: url("/images/contact-bg.jpg") center / cover no-repeat;
+}
+.contact::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(243, 240, 238, 0.96) 0%, rgba(243, 240, 238, 0.9) 42%, rgba(243, 240, 238, 0.62) 100%);
+}
+@media (max-width: 1000px) {
+  .contact::after {
+    background: rgba(243, 240, 238, 0.9);
+  }
+}
