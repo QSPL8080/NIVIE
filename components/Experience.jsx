@@ -64,23 +64,72 @@ export default function Experience() {
       });
     }
 
-    /* Anchor links -> smooth scroll */
+    /* Anchor links -> smooth scroll, and the address bar shows the section (#projects, #contact, #enquire) */
+    const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+    const findTarget = (hash) => {
+      if (!hash || hash.length < 2) return null;
+      try {
+        return document.querySelector(decodeURIComponent(hash));
+      } catch {
+        return null;
+      }
+    };
+    const scrollToTarget = (target, smooth) => {
+      if (lenis) {
+        lenis.start();
+        lenis.scrollTo(target, smooth ? { duration: 1.6, easing: easeOut } : { immediate: true, force: true });
+      } else target.scrollIntoView({ behavior: smooth && !reduce ? "smooth" : "auto" });
+    };
+    const setAddress = (hash) => {
+      // Home (#top) keeps a clean address; every other section gets its own #link
+      const next = hash === "#top" ? "" : hash;
+      if (next === window.location.hash) return;
+      const url = next || window.location.pathname + window.location.search;
+      window.history.pushState(null, "", url);
+    };
     const onClick = (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = e.target.closest('a[href^="#"]');
       if (!a) return;
       const id = a.getAttribute("href");
-      if (!id || id.length < 2) return;
-      const target = q(id);
+      const target = findTarget(id);
       if (!target) return;
       e.preventDefault();
       window.dispatchEvent(new Event("nivie:closemenu"));
-      if (lenis) {
-        lenis.start();
-        lenis.scrollTo(target, { duration: 1.6, easing: (t) => 1 - Math.pow(1 - t, 4) });
-      } else target.scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+      setAddress(id);
+      scrollToTarget(target, true);
     };
     document.addEventListener("click", onClick);
     cleanups.push(() => document.removeEventListener("click", onClick));
+
+    /* Back / forward between sections */
+    const onPop = () => {
+      const target = findTarget(window.location.hash) || q("#top");
+      if (target) scrollToTarget(target, true);
+    };
+    window.addEventListener("popstate", onPop);
+    cleanups.push(() => window.removeEventListener("popstate", onPop));
+
+    /* Opening a shared link such as /#contact: jump there once the layout has settled */
+    if (findTarget(window.location.hash)) {
+      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+      let done = false;
+      const jump = () => {
+        if (done) return;
+        done = true;
+        ScrollTrigger.refresh();
+        const target = findTarget(window.location.hash);
+        if (target) scrollToTarget(target, false);
+      };
+      const timer = setTimeout(jump, 900);
+      const onLoad = () => setTimeout(jump, 250);
+      if (document.readyState === "complete") onLoad();
+      else window.addEventListener("load", onLoad, { once: true });
+      cleanups.push(() => {
+        clearTimeout(timer);
+        window.removeEventListener("load", onLoad);
+      });
+    }
 
     /* ---------------- Magnetic buttons + image tilt (cursor lives in Cursor.jsx) ---------------- */
     if (finePointer && !reduce) {

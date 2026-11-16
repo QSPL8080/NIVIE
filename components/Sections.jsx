@@ -78,7 +78,7 @@ export function Studio() {
 /* ------------------------------------------------------------------ */
 export function Stories() {
   return (
-    <section className="stories" id="stories" aria-labelledby="stories-title">
+    <section className="stories" id="projects" aria-labelledby="stories-title">
       <div className="wrap stories-head">
         <div>
           <h2 id="stories-title" className="display" data-lines>
