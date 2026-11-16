@@ -9,17 +9,43 @@ import { site } from "@/lib/content";
 
 export const metadata = {
   metadataBase: new URL(site.url),
-  title: "Architecture, Interiors & Landscape Design | Nivie Designs",
+  title: "Best Luxury Interior Designers in Pune & PCMC | Nivie Designs",
   description:
-    "Transform your space with Nivie Designs. Explore creative architecture, interior and landscape design solutions tailored to your vision.",
+    "Looking for 2, 3 or 4 BHK interior designers in Pune & PCMC? Nivie Designs offers premium luxury home interiors, modern designs and quality craftsmanship. Get your quotation today!",
+  keywords: [
+    "2 BHK interior designers Pune",
+    "3 BHK interior designers Pune",
+    "4 BHK interior designers Pune",
+    "2 BHK interior designers PCMC",
+    "3 BHK interior designers PCMC",
+    "4 BHK interior designers PCMC",
+    "luxury interior designers Pune",
+    "luxury interior designers PCMC",
+    "premium home interiors Pune",
+    "premium home interiors PCMC",
+    "luxury home interior design",
+    "modern luxury home interiors",
+    "luxury villa interior design Pune",
+    "bungalow interior designers Pune",
+    "high-end interior designers Pune",
+    "home interior designers Pune and PCMC",
+    "Nivie Designs",
+  ],
   openGraph: {
-    title: "Architecture, Interiors & Landscape Design | Nivie Designs",
+    title: "Best Luxury Interior Designers in Pune & PCMC | Nivie Designs",
     description:
-      "Transform your space with Nivie Designs. Explore creative architecture, interior and landscape design solutions tailored to your vision.",
+      "Looking for 2, 3 or 4 BHK interior designers in Pune & PCMC? Nivie Designs offers premium luxury home interiors, modern designs and quality craftsmanship. Get your quotation today!",
     url: site.url,
     siteName: "Nivie Designs",
     images: ["/images/rk-villa.jpg"],
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Best Luxury Interior Designers in Pune & PCMC | Nivie Designs",
+    description:
+      "Looking for 2, 3 or 4 BHK interior designers in Pune & PCMC? Nivie Designs offers premium luxury home interiors, modern designs and quality craftsmanship. Get your quotation today!",
+    images: ["/images/rk-villa.jpg"],
   },
   icons: { icon: "/images/logo-mark-sm.png" },
 };
@@ -35,7 +61,7 @@ const jsonLd = {
   "@type": "ProfessionalService",
   name: "Nivie Designs",
   description:
-    "Transform your space with Nivie Designs. Explore creative architecture, interior and landscape design solutions tailored to your vision.",
+    "Looking for 2, 3 or 4 BHK interior designers in Pune & PCMC? Nivie Designs offers premium luxury home interiors, modern designs and quality craftsmanship. Get your quotation today!",
   url: site.url,
   telephone: "+91-" + site.phone,
   email: site.email,
