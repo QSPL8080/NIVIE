@@ -22,10 +22,7 @@ export function Hero() {
           </h1>
           <div className="hero-rule" aria-hidden="true">
             <span className="hero-rule-line" />
-            <a href="#studio" className="hero-scroll hero-scroll-desktop desktop-only" aria-label="Scroll down">
-              <Icon name="arrow" />
-            </a>
-            <a href="#enquire-mobile" className="hero-scroll hero-scroll-mobile mobile-only" aria-label="Scroll to enquiry form">
+            <a href="#studio" className="hero-scroll" aria-label="Scroll down">
               <Icon name="arrow" />
             </a>
           </div>

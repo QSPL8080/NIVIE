@@ -4036,27 +4036,13 @@ h2 em {
 }
 
 /* Visibility toggles for mobile vs desktop */
-.mobile-only {
-  display: none !important;
-}
-
 .desktop-only {
   display: block;
-}
-
-.hero-scroll.desktop-only {
-  display: grid !important;
 }
 
 @media (max-width: 1024px) {
   .mobile-enquiry-section {
     display: block !important;
-  }
-  .mobile-only {
-    display: flex !important;
-  }
-  .hero-scroll.mobile-only {
-    display: grid !important;
   }
   .desktop-only {
     display: none !important;
