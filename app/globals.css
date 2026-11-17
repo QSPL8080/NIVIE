@@ -720,6 +720,7 @@ html.cursor-on * {
   position: absolute;
   inset: 0;
   z-index: 1;
+  pointer-events: none;
   background:
     radial-gradient(60% 70% at 78% 40%, rgba(129, 46, 90, 0.34), transparent 70%),
     linear-gradient(180deg, rgba(53, 12, 33, 0.55) 0%, rgba(53, 12, 33, 0.2) 40%, rgba(53, 12, 33, 0.92) 100%);
@@ -3851,7 +3852,16 @@ h2 em {
   transition: transform 0.6s var(--ease-out);
 }
 
-/* hero background video */
+/* ==========================================================================
+   Hero Media: Desktop Video & Mobile/Tablet 5-Image 3s Slider
+   ========================================================================== */
+.hero-desktop-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
 .hero-bg .hero-poster,
 .hero-bg .hero-video {
   position: absolute;
@@ -3860,7 +3870,7 @@ h2 em {
   height: 100%;
   max-width: none;
   object-fit: cover;
-  filter: brightness(0.55) saturate(0.95);
+  filter: brightness(0.66) saturate(0.95);
 }
 .hero-bg .hero-video {
   opacity: 0;
@@ -3872,6 +3882,125 @@ h2 em {
 .hero-bg .hero-poster.is-hidden {
   opacity: 0;
   transition: opacity 1.2s ease 0.2s;
+}
+
+/* Mobile & Tablet Slider Container */
+.hero-mobile-slider {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+/* Display toggle based on screen size:
+   Desktop / PC / Laptop (> 1024px): show full HD video.
+   Mobile / Tablet (<= 1024px): show high-definition 5-image slider. */
+@media (min-width: 1025px) {
+  .hero-desktop-media {
+    display: block !important;
+  }
+  .hero-mobile-slider {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .hero-desktop-media {
+    display: none !important;
+  }
+  .hero-mobile-slider {
+    display: block !important;
+  }
+}
+
+/* Mobile Slider Track & Slides */
+.hero-slider-track {
+  display: flex;
+  height: 100%;
+  width: 700%; /* 7 items total: 5 slides + 2 clones for seamless infinite looping */
+  will-change: transform;
+}
+
+.hero-slider-slide {
+  width: calc(100% / 7);
+  height: 100%;
+  flex: 0 0 calc(100% / 7);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-slide-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  filter: brightness(0.72) saturate(0.95);
+  transform: scale(1.01);
+  transition: transform 3s cubic-bezier(0.25, 1, 0.5, 1);
+  display: block;
+}
+
+/* Subtle architectural Ken-Burns breathing zoom on active slide */
+.hero-slider-slide.is-active .hero-slide-img {
+  transform: scale(1.07);
+}
+
+/* Luxury Slide Indicators */
+.hero-slider-indicators {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 5;
+  padding: 6px 14px;
+  background: rgba(36, 8, 22, 0.52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(241, 201, 221, 0.25);
+  border-radius: 999px;
+  pointer-events: auto;
+}
+
+.hero-slider-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.35s ease,
+              box-shadow 0.35s ease;
+}
+
+.hero-slider-dot.is-active {
+  width: 24px;
+  background: #f1c9dd;
+  box-shadow: 0 0 10px rgba(241, 201, 221, 0.65);
+}
+
+@media (max-width: 480px) {
+  .hero-slider-indicators {
+    bottom: 14px;
+    padding: 5px 12px;
+    gap: 6px;
+  }
+  .hero-slider-dot {
+    width: 6px;
+    height: 6px;
+  }
+  .hero-slider-dot.is-active {
+    width: 20px;
+  }
 }
 
 /* Nivie palette: on dark (aubergine) sections use the lighter plum tint for accents */
@@ -4782,7 +4911,8 @@ h2.display {
     inset: 0 !important;
   }
   .hero-bg .hero-video,
-  .hero-bg .hero-poster {
+  .hero-bg .hero-poster,
+  .hero-bg .hero-slide-img {
     object-position: center 35%;
   }
   .hero-form {
