@@ -4003,6 +4003,69 @@ h2 em {
   }
 }
 
+/* ==========================================================================
+   Mobile & Tablet Dedicated Enquiry Section (Directly Below Hero)
+   ========================================================================== */
+.mobile-enquiry-section {
+  display: none;
+  position: relative;
+  background: var(--lilac-1);
+  padding: clamp(48px, 9vw, 76px) 0;
+  border-top: 1px solid rgba(129, 46, 90, 0.1);
+  border-bottom: 1px solid rgba(129, 46, 90, 0.1);
+}
+
+.mobile-enquiry-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mobile-enquiry-box {
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+.mobile-enquiry-box .form-card {
+  background: #ffffff;
+  box-shadow: 0 25px 60px -20px rgba(95, 31, 67, 0.28);
+  border: 1px solid rgba(129, 46, 90, 0.1);
+  border-radius: 14px;
+  padding: clamp(24px, 5vw, 36px);
+}
+
+/* Visibility toggles for mobile vs desktop */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: block;
+}
+
+.hero-scroll.desktop-only {
+  display: grid !important;
+}
+
+@media (max-width: 1024px) {
+  .mobile-enquiry-section {
+    display: block !important;
+  }
+  .mobile-only {
+    display: flex !important;
+  }
+  .hero-scroll.mobile-only {
+    display: grid !important;
+  }
+  .desktop-only {
+    display: none !important;
+  }
+  .hero .hero-form {
+    display: none !important;
+  }
+}
+
 /* Nivie palette: on dark (aubergine) sections use the lighter plum tint for accents */
 .hero h1 em,
 .stories h2 em,
@@ -4477,14 +4540,6 @@ h2.display {
 @media (max-width: 1000px) {
   .hero-layout {
     grid-template-columns: 1fr;
-    align-items: start;
-  }
-  .hero {
-    min-height: 0;
-    padding-top: 120px;
-  }
-  .hero-form {
-    max-width: 560px;
   }
 }
 
@@ -4899,14 +4954,6 @@ h2.display {
 /* Hero: heading + form side by side only when there is room for both
    (below 1100px the heading ran under the form on small laptops / iPad landscape) */
 @media (max-width: 1100px) {
-  .hero-layout {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-  .hero {
-    min-height: 0;
-    padding-top: 120px;
-  }
   .hero-bg {
     inset: 0 !important;
   }
@@ -4915,11 +4962,32 @@ h2.display {
   .hero-bg .hero-slide-img {
     object-position: center 35%;
   }
-  .hero-form {
-    max-width: 600px;
-  }
   .hero h1 {
     font-size: clamp(34px, 6.4vw, 64px);
+  }
+}
+
+/* Mobile & Tablet: Hero section showcases sliding images & headline in clean luxury view,
+   while the form is shifted to its dedicated section directly below. */
+@media (max-width: 1024px) {
+  .hero {
+    min-height: clamp(540px, 82svh, 820px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 110px;
+    padding-bottom: 50px;
+  }
+  .hero-layout {
+    grid-template-columns: 1fr;
+    width: 100%;
+    align-items: center;
+  }
+  .hero .hero-form {
+    display: none !important;
+  }
+  .hero-copy {
+    max-width: 100%;
   }
 }
 

@@ -22,13 +22,31 @@ export function Hero() {
           </h1>
           <div className="hero-rule" aria-hidden="true">
             <span className="hero-rule-line" />
-            <a href="#studio" className="hero-scroll" aria-label="Scroll down">
+            <a href="#studio" className="hero-scroll hero-scroll-desktop desktop-only" aria-label="Scroll down">
+              <Icon name="arrow" />
+            </a>
+            <a href="#enquire-mobile" className="hero-scroll hero-scroll-mobile mobile-only" aria-label="Scroll to enquiry form">
               <Icon name="arrow" />
             </a>
           </div>
         </div>
-        <div className="hero-form" id="enquire" data-hero-form>
+        <div className="hero-form desktop-only" id="enquire" data-hero-form>
           <EnquiryForm idPrefix="hero" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Dedicated mobile and tablet enquiry section directly below hero    */
+/* ------------------------------------------------------------------ */
+export function MobileEnquiry() {
+  return (
+    <section className="mobile-enquiry-section" id="enquire-mobile" aria-label="Book Design Consultation">
+      <div className="wrap mobile-enquiry-wrap">
+        <div className="hero-form mobile-enquiry-box">
+          <EnquiryForm idPrefix="mobile" />
         </div>
       </div>
     </section>

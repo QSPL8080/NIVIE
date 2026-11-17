@@ -69,6 +69,12 @@ export default function Experience() {
     const findTarget = (hash) => {
       if (!hash || hash.length < 2) return null;
       try {
+        if (hash === "#enquire") {
+          const isMob = window.matchMedia("(max-width: 1024px)").matches;
+          if (isMob) {
+            return document.querySelector("#enquire-mobile") || document.querySelector("#enquire");
+          }
+        }
         return document.querySelector(decodeURIComponent(hash));
       } catch {
         return null;
