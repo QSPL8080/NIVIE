@@ -16,8 +16,8 @@ export function Hero() {
       <div className="wrap hero-layout">
         <div className="hero-copy">
           <h1 id="hero-title" className="display" data-hero-title>
-            <span className="line"><span>Top Commercial &amp;</span></span>
-            <span className="line"><span>Residential</span></span>
+            <span className="line"><span>Top Residential &amp;</span></span>
+            <span className="line"><span>Commercial</span></span>
             <span className="line"><span>Interior <em className="gold-text">Designer</em></span></span>
           </h1>
           <div className="hero-rule" aria-hidden="true">
