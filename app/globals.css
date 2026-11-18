@@ -5665,3 +5665,158 @@ h2.display {
     background: rgba(243, 240, 238, 0.9);
   }
 }
+
+/* ==========================================================================
+   Floating Quick Contact Buttons (WhatsApp & Direct Call)
+   ========================================================================== */
+.floating-contact {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9200;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.floating-btn {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease,
+              filter 0.3s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Call Button: Luxury Nivie plum gradient with gold border */
+.floating-call {
+  background: linear-gradient(135deg, #812E5A 0%, #5F1F43 100%);
+  box-shadow: 0 8px 24px -4px rgba(95, 31, 67, 0.45),
+              0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(241, 201, 221, 0.35);
+}
+
+.floating-call:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 12px 28px -4px rgba(95, 31, 67, 0.6),
+              0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* WhatsApp Button: Authentic vibrant emerald gradient with ripple */
+.floating-wa {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  box-shadow: 0 8px 24px -4px rgba(18, 140, 126, 0.5),
+              0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.floating-wa:hover {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 12px 28px -4px rgba(18, 140, 126, 0.65),
+              0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.floating-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.floating-btn svg {
+  width: 25px;
+  height: 25px;
+  transition: transform 0.3s ease;
+}
+
+.floating-btn:hover svg {
+  transform: scale(1.08);
+}
+
+/* Online Pulse Beacon on WhatsApp */
+.floating-status {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #25D366;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(37, 211, 102, 0.6);
+  animation: waPulse 2s infinite;
+}
+
+@keyframes waPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(37, 211, 102, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
+  }
+}
+
+/* Desktop Tooltips */
+.floating-tooltip {
+  position: absolute;
+  right: calc(100% + 12px);
+  white-space: nowrap;
+  background: rgba(36, 8, 22, 0.94);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 6px 13px;
+  border-radius: 8px;
+  border: 1px solid rgba(241, 201, 221, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(8px);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-btn:hover .floating-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Mobile & Tablet Optimizations */
+@media (max-width: 640px) {
+  .floating-contact {
+    right: 16px;
+    bottom: 20px;
+    gap: 10px;
+  }
+  .floating-btn {
+    width: 48px;
+    height: 48px;
+  }
+  .floating-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  .floating-tooltip {
+    display: none !important;
+  }
+}
+
