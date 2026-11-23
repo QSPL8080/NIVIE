@@ -7,6 +7,18 @@ const nextConfig = {
   // scripts for network addresses and the page never becomes interactive.
   allowedDevOrigins: ["192.*.*.*", "10.*.*.*", "172.*.*.*", "*.local"],
   devIndicators: false,
+  // Short / old addresses for the legal pages all land on the proper page.
+  // (Matching ignores letter case; capitalised URLs are lower-cased in proxy.js.)
+  async redirects() {
+    const to = {
+      "/privacy-policy": ["/privacy", "/privacy-policy.php", "/privacypolicy"],
+      "/terms-and-conditions": ["/terms", "/terms-conditions", "/terms-and-conditions.php", "/terms.php"],
+      "/cookie-policy": ["/cookies", "/cookie-policy.php"],
+    };
+    return Object.entries(to).flatMap(([destination, sources]) =>
+      sources.map((source) => ({ source, destination, permanent: true }))
+    );
+  },
 };
 
 export default nextConfig;

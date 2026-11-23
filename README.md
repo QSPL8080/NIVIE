@@ -103,7 +103,7 @@ If the alert can't be sent, the enquiry is still saved and the reason appears in
 | What | File |
 | --- | --- |
 | Projects, services, testimonials, contact details, Instagram images | `lib/content.js` |
-| Terms & Conditions, Cookie Policy | `lib/legal.js` |
+| Privacy Policy, Terms & Conditions, Cookie Policy (pages at `/privacy-policy`, `/terms-and-conditions`, `/cookie-policy`) | `lib/legal.js` |
 | Page title & meta description | `app/layout.js` |
 | Section layout | `components/Sections.jsx`, `components/*.jsx` |
 | Colours, fonts, styles | `app/globals.css` (variables at the top) |

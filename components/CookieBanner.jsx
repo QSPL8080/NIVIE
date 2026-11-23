@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Icon from "./Icon";
-import { openLegal } from "./LegalLink";
+import Link from "next/link";
 
 const KEY = "nivie-cookie-choice";
 
@@ -46,7 +46,7 @@ export default function CookieBanner() {
           At Nivie Designs, we use cookies and similar technologies to improve
           your browsing experience, understand how visitors interact with our
           website, and enhance our online services.{" "}
-          <button type="button" onClick={() => openLegal("cookies")}>Cookie Policy</button>
+          <Link href="/cookie-policy">Cookie Policy</Link>
         </p>
       </div>
       <div className="cookie-actions">

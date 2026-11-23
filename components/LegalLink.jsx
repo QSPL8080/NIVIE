@@ -1,14 +1,18 @@
-"use client";
+import Link from "next/link";
 
-// Opens the Terms / Cookie Policy drawer from anywhere on the page.
-export function openLegal(doc) {
-  window.dispatchEvent(new CustomEvent("nivie:legal", { detail: doc }));
-}
+// Links to the full legal pages (each one has its own URL).
+const paths = {
+  privacy: "/privacy-policy",
+  terms: "/terms-and-conditions",
+  cookies: "/cookie-policy",
+};
+
+export const legalHref = (doc) => paths[doc] || paths.privacy;
 
 export default function LegalLink({ doc, children, className }) {
   return (
-    <button type="button" className={className} onClick={() => openLegal(doc)}>
+    <Link href={legalHref(doc)} className={className}>
       {children}
-    </button>
+    </Link>
   );
 }
