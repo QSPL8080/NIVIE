@@ -311,7 +311,12 @@ export function Footer() {
         </div>
 
         <div className="foot-bottom">
-          <span>© {year} Nivie Designs</span>
+          <span className="foot-credit">
+            © {year} Nivie Designs
+            <span className="credit-sep" aria-hidden="true">·</span>
+            Developed By -{" "}
+            <a href="https://quickuppsoftech.com/" target="_blank" rel="noopener noreferrer">Quickupp Softech Team</a>
+          </span>
           <nav aria-label="Legal">
             <LegalLink doc="privacy">Privacy Policy</LegalLink>
             <LegalLink doc="terms">Terms &amp; Conditions</LegalLink>

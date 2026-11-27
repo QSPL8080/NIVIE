@@ -6332,3 +6332,19 @@ html:has(.legal-page) {
     display: none;
   }
 }
+
+/* Developer credit in footers */
+.foot-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: currentColor;
+  transition: color 0.3s;
+}
+.foot-credit a:hover { color: #fff; }
+.legal-foot .foot-credit a:hover { color: var(--plum-soft); }
+.credit-sep { margin-inline: 10px; opacity: 0.6; }
+@media (max-width: 600px) {
+  .foot-credit { display: flex; flex-direction: column; gap: 4px; }
+  .foot-credit .credit-sep { display: none; }
+}

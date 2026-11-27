@@ -157,7 +157,12 @@ export default function LegalPage({ slug }) {
 
       <footer className="legal-foot">
         <div className="legal-wrap legal-foot-bar">
-          <span>© {year} Nivie Designs. All rights reserved.</span>
+          <span className="foot-credit">
+            © {year} Nivie Designs. All rights reserved.
+            <span className="credit-sep" aria-hidden="true">·</span>
+            Developed By -{" "}
+            <a href="https://quickuppsoftech.com/" target="_blank" rel="noopener noreferrer">Quickupp Softech Team</a>
+          </span>
           <nav aria-label="Legal">
             {legalOrder.map((k) => (
               <Link key={k} href={`/${legalDocs[k].slug}`} aria-current={k === slug ? "page" : undefined}>
